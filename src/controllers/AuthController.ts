@@ -168,49 +168,9 @@ export class AuthController {
                 delete (req as any).session.oauthState;
             }
 
-            // Return success page with token
-            res.send(`
-                <html>
-                    <head>
-                        <title>Authentication Successful</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                            .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 5px; }
-                            .token { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 3px; font-family: monospace; word-break: break-all; margin: 10px 0; }
-                            button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 3px; cursor: pointer; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="success">
-                            <h1>🎉 Authentication Successful!</h1>
-                            <p><strong>Welcome:</strong> ${userInfo.email}</p>
-                            <p><strong>User ID:</strong> ${user.id}</p>
-                            
-                            <h3>Your JWT Token:</h3>
-                            <div class="token" id="token">${jwtToken}</div>
-                            <button onclick="copyToken()">Copy Token</button>
-                            
-                            <h3>Next Steps:</h3>
-                            <ul>
-                                <li>Copy the JWT token above</li>
-                                <li>Use it in the Authorization header: <code>Bearer YOUR_TOKEN</code></li>
-                                <li>Test protected endpoints like <code>/api/emails</code></li>
-                            </ul>
-                            
-                            <p><strong>Token expires in:</strong> 24 hours</p>
-                        </div>
-                        
-                        <script>
-                            function copyToken() {
-                                const token = document.getElementById('token').textContent;
-                                navigator.clipboard.writeText(token).then(() => {
-                                    alert('Token copied to clipboard!');
-                                });
-                            }
-                        </script>
-                    </body>
-                </html>
-            `);
+            // Redirect to frontend with token
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3005';
+            res.redirect(`${frontendUrl}/auth/callback?token=${encodeURIComponent(jwtToken)}&user=${encodeURIComponent(JSON.stringify(user))}`);
         } catch (error) {
             console.error('Callback GET error:', error);
             res.status(500).send(`
