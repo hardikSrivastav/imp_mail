@@ -1,0 +1,48 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - INDEXING_DEBUG=true
+      - OPENAI_MODEL=gpt-4o-mini
+      - PROTOTYPE_HIGH_THRESHOLD=0.6
+      - PROTOTYPE_LOW_THRESHOLD=0.5
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - qdrant
+    networks:
+      - email-filter-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - email-filter-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - email-filter-network
+
+volumes:
+  redis_data:
+  qdrant_data:
+
+networks:
+  email-filter-network:
+    driver: bridge

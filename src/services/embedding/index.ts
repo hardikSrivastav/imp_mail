@@ -1,0 +1,1 @@
+export { VectorEmbeddingService } from './VectorEmbeddingService';
