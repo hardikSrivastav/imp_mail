@@ -132,12 +132,15 @@ class ApiClient {
     return this.get("/api/filter/expectations")
   }
 
-  async saveExpectations(expectations: {
-    title: string
-    description: string
-    examples: string[]
-  }) {
-    return this.post("/api/filter/expectations", expectations)
+  async saveExpectations(
+    expectations: {
+      title: string
+      description: string
+      examples: string[]
+    },
+    options?: { selectedImportantEmailIds?: string[]; selectedNotImportantEmailIds?: string[] }
+  ) {
+    return this.post("/api/filter/expectations", { ...expectations, ...(options || {}) })
   }
 
   // Similarity insights
@@ -169,7 +172,8 @@ class ApiClient {
   }
 
   async batchClassify() {
-    return this.post("/api/filter/classify/batch")
+    // Backend route is /api/filter/batch
+    return this.post("/api/filter/batch")
   }
 }
 

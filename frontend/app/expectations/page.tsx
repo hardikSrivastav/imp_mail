@@ -24,7 +24,16 @@ export default function ExpectationsPage() {
       setLoading(true)
       setError(null)
       const response = await apiClient.getExpectations()
-      setExpectations(response.data)
+      const server = (response.data as any)?.expectations
+      if (server) {
+        const mergedExamples: string[] = [
+          ...(server.examples?.important || []),
+          ...(server.examples?.notImportant || []),
+        ]
+        setExpectations({ title: server.title, description: server.description, examples: mergedExamples })
+      } else {
+        setExpectations(null)
+      }
     } catch (err) {
       // If expectations don't exist yet, that's okay
       if (err instanceof Error && err.message.includes("404")) {
@@ -42,7 +51,7 @@ export default function ExpectationsPage() {
   }, [])
 
   const handleSaveExpectations = async (newExpectations: Expectations) => {
-    await apiClient.saveExpectations(newExpectations)
+    // API call is handled inside the form to include selected email IDs.
     setExpectations(newExpectations)
   }
 

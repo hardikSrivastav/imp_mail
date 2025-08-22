@@ -82,7 +82,7 @@ export class QdrantRepository {
     queryVector: number[],
     userId: string,
     limit: number = 10,
-    scoreThreshold: number = 0.7
+    scoreThreshold: number = 0.0
   ): Promise<Array<{ emailId: string; score: number; vectorId: string }>> {
     try {
       const searchResult = await this.client.search(this.collectionName, {
@@ -95,11 +95,11 @@ export class QdrantRepository {
             match: { value: userId }
           }]
         },
-        with_payload: true
+        with_payload: false
       });
 
       return searchResult.map(result => ({
-        emailId: result.payload?.emailId as string,
+        emailId: String(result.id),
         score: result.score || 0,
         vectorId: String(result.id)
       }));

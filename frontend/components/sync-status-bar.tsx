@@ -1,31 +1,32 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { apiClient, type IndexingProgress } from "@/lib/api-client"
-import { usePolling } from "@/hooks/use-polling"
 import { RefreshCw, Play, AlertCircle } from "lucide-react"
 
 export function SyncStatusBar() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Poll indexing progress every 5 seconds when syncing
-  const { data: progress, error: pollingError, isLoading, refetch } = usePolling<IndexingProgress>(
-    () => apiClient.getIndexingProgress().then((res) => res.data),
-    {
-      interval: 5000,
-      enabled: isSyncing,
-    },
-  )
-
-  useEffect(() => {
-    // Initial fetch
-    refetch()
-  }, [refetch])
+  const {
+    data: progress,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery<IndexingProgress>({
+    queryKey: ["indexing-progress"],
+    queryFn: () => apiClient.getIndexingProgress().then((res) => res.data),
+    refetchInterval: (q) =>
+      q.state.data?.syncState?.currentSyncStatus === "syncing" ? 5000 : false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev, // keep previous data to avoid flicker
+  })
 
   useEffect(() => {
     if (progress) {
@@ -113,20 +114,20 @@ export function SyncStatusBar() {
           </div>
         )}
 
-        {(error || pollingError) && (
+        {error && (
           <div className="flex items-center gap-2 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
-            {error || pollingError?.message || "Failed to load sync status"}
+            {error || "Failed to load sync status"}
           </div>
         )}
 
         <div className="flex gap-2">
           <Button onClick={handleTriggerIncremental} disabled={isSyncing} variant="outline" size="sm">
-            {isSyncing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+            {isSyncing || isFetching ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Incremental Sync
           </Button>
           <Button onClick={handleTriggerSync} disabled={isSyncing} variant="outline" size="sm">
-            {isSyncing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+            {isSyncing || isFetching ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Full Sync
           </Button>
         </div>

@@ -1,3 +1,5 @@
+// use-polling.ts is deprecated in favor of React Query's useQuery with refetchInterval.
+// Please migrate components to @tanstack/react-query and conditional polling.
 "use client"
 
 import { useEffect, useRef, useState } from "react"

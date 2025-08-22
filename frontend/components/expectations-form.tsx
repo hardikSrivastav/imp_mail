@@ -17,7 +17,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { Expectations } from "@/lib/api-client"
+import { apiClient } from "@/lib/api-client"
 import { Plus, X, Save, AlertCircle } from "lucide-react"
+import { EmailPicker } from "@/components/email-picker"
 
 interface ExpectationsFormProps {
   expectations: Expectations | null
@@ -30,6 +32,8 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
   const [title, setTitle] = useState(expectations?.title || "")
   const [description, setDescription] = useState(expectations?.description || "")
   const [examples, setExamples] = useState<string[]>(expectations?.examples || [""])
+  const [selectedImportantIds, setSelectedImportantIds] = useState<string[]>([])
+  const [selectedNotImportantIds, setSelectedNotImportantIds] = useState<string[]>([])
   const [showClassificationDialog, setShowClassificationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,8 +70,9 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
       }
 
       const filteredExamples = examples.filter((example) => example.trim())
-      if (filteredExamples.length === 0) {
-        setError("At least one example is required")
+      const hasPickedEmails = selectedImportantIds.length > 0 || selectedNotImportantIds.length > 0
+      if (filteredExamples.length === 0 && !hasPickedEmails) {
+        setError("Add at least one typed example or pick emails below")
         return
       }
 
@@ -76,6 +81,12 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
         description: description.trim(),
         examples: filteredExamples,
       }
+
+      // Pass selected email IDs so backend can construct examples JSON
+      await apiClient.saveExpectations(expectationsData, {
+        selectedImportantEmailIds: selectedImportantIds,
+        selectedNotImportantEmailIds: selectedNotImportantIds,
+      })
 
       await onSave(expectationsData)
 
@@ -176,6 +187,20 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Optional: pick emails to auto-generate JSON examples on backend */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <EmailPicker
+                label="Pick important example emails (optional)"
+                selectedIds={selectedImportantIds}
+                onChange={setSelectedImportantIds}
+              />
+              <EmailPicker
+                label="Pick NOT important example emails (optional)"
+                selectedIds={selectedNotImportantIds}
+                onChange={setSelectedNotImportantIds}
+              />
             </div>
           </div>
 

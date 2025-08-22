@@ -11,19 +11,27 @@ import { QdrantRepository } from '../repositories/QdrantRepository';
 export interface CreateExpectationsRequest {
   title: string;
   description: string;
+  // Preferred shape
   examples?: {
     important: string[];
     notImportant: string[];
-  };
+  } | string[] | string; // Accept flexible inputs (array or single string)
+  // Optional helper inputs: choose emails instead of typing JSON
+  selectedImportantEmailIds?: string[];
+  selectedNotImportantEmailIds?: string[];
 }
 
 export interface UpdateExpectationsRequest {
   title?: string;
   description?: string;
+  // Preferred shape
   examples?: {
     important: string[];
     notImportant: string[];
-  };
+  } | string[] | string; // Accept flexible inputs (array or single string)
+  // Optional helper inputs
+  selectedImportantEmailIds?: string[];
+  selectedNotImportantEmailIds?: string[];
 }
 
 export interface BatchFilterRequest {
@@ -50,7 +58,36 @@ export class FilterController {
   async createExpectations(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const { title, description, examples } = req.body as CreateExpectationsRequest;
+      const { title, description } = req.body as CreateExpectationsRequest;
+
+      // Debug log incoming body shape (non-sensitive summary)
+      try {
+        const body = req.body as any;
+        console.log('[Expectations][create] userId=%s title.len=%s desc.len=%s has.examples=%s selImp.len=%s selNotImp.len=%s',
+          userId,
+          typeof body.title === 'string' ? body.title.length : 'n/a',
+          typeof body.description === 'string' ? body.description.length : 'n/a',
+          body.examples ? typeof body.examples : 'none',
+          Array.isArray(body.selectedImportantEmailIds) ? body.selectedImportantEmailIds.length : 0,
+          Array.isArray(body.selectedNotImportantEmailIds) ? body.selectedNotImportantEmailIds.length : 0,
+        );
+      } catch (_) { /* noop */ }
+
+      // Debug: log incoming payload shape (without large text)
+      try {
+        const dbg = {
+          userId,
+          hasExamples: typeof (req.body as any).examples !== 'undefined',
+          examplesType: typeof (req.body as any).examples,
+          selectedImportantEmailIdsCount: Array.isArray((req.body as any).selectedImportantEmailIds)
+            ? (req.body as any).selectedImportantEmailIds.length
+            : 0,
+          selectedNotImportantEmailIdsCount: Array.isArray((req.body as any).selectedNotImportantEmailIds)
+            ? (req.body as any).selectedNotImportantEmailIds.length
+            : 0,
+        };
+        console.log('[Expectations] create payload dbg:', dbg);
+      } catch {}
 
       // Validate required fields
       if (!title || !description) {
@@ -79,17 +116,18 @@ export class FilterController {
         return;
       }
 
-      // Validate examples if provided
-      if (examples) {
-        if (!Array.isArray(examples.important) || !Array.isArray(examples.notImportant)) {
-          res.status(400).json({
-            error: 'Invalid examples format',
-            message: 'examples.important and examples.notImportant must be arrays'
-          });
-          return;
-        }
-
-        if (examples.important.length > 10 || examples.notImportant.length > 10) {
+      // Normalize and build examples from flexible input
+      const normalizedExamples = await this.buildExamplesFromInput(req);
+      console.log('[Expectations][create] normalizedExamples: imp.len=%s not.len=%s',
+        normalizedExamples?.important.length ?? 0,
+        normalizedExamples?.notImportant.length ?? 0,
+      );
+      console.log('[Expectations] create normalizedExamples counts:', {
+        important: normalizedExamples?.important?.length || 0,
+        notImportant: normalizedExamples?.notImportant?.length || 0,
+      });
+      if (normalizedExamples) {
+        if (normalizedExamples.important.length > 10 || normalizedExamples.notImportant.length > 10) {
           res.status(400).json({
             error: 'Too many examples',
             message: 'Maximum 10 examples allowed for each category'
@@ -102,7 +140,7 @@ export class FilterController {
         userId,
         title,
         description,
-        examples
+        normalizedExamples ?? undefined
       );
 
       res.status(201).json({
@@ -160,7 +198,33 @@ export class FilterController {
   async updateExpectations(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const { title, description, examples } = req.body as UpdateExpectationsRequest;
+      const { title, description } = req.body as UpdateExpectationsRequest;
+
+      // Debug log incoming body shape
+      try {
+        const body = req.body as any;
+        console.log('[Expectations][update] userId=%s has.examples=%s selImp.len=%s selNotImp.len=%s',
+          userId,
+          body.examples ? typeof body.examples : 'none',
+          Array.isArray(body.selectedImportantEmailIds) ? body.selectedImportantEmailIds.length : 0,
+          Array.isArray(body.selectedNotImportantEmailIds) ? body.selectedNotImportantEmailIds.length : 0,
+        );
+      } catch (_) { /* noop */ }
+
+      try {
+        const dbg = {
+          userId,
+          hasExamples: typeof (req.body as any).examples !== 'undefined',
+          examplesType: typeof (req.body as any).examples,
+          selectedImportantEmailIdsCount: Array.isArray((req.body as any).selectedImportantEmailIds)
+            ? (req.body as any).selectedImportantEmailIds.length
+            : 0,
+          selectedNotImportantEmailIdsCount: Array.isArray((req.body as any).selectedNotImportantEmailIds)
+            ? (req.body as any).selectedNotImportantEmailIds.length
+            : 0,
+        };
+        console.log('[Expectations] update payload dbg:', dbg);
+      } catch {}
 
       // Get current expectations
       const currentExpectations = await this.expectationsManager.getActiveExpectations(userId);
@@ -193,16 +257,17 @@ export class FilterController {
         }
       }
 
-      if (examples) {
-        if (!Array.isArray(examples.important) || !Array.isArray(examples.notImportant)) {
-          res.status(400).json({
-            error: 'Invalid examples format',
-            message: 'examples.important and examples.notImportant must be arrays'
-          });
-          return;
-        }
-
-        if (examples.important.length > 10 || examples.notImportant.length > 10) {
+      const normalizedExamples = await this.buildExamplesFromInput(req);
+      console.log('[Expectations][update] normalizedExamples: imp.len=%s not.len=%s',
+        normalizedExamples?.important.length ?? 0,
+        normalizedExamples?.notImportant.length ?? 0,
+      );
+      console.log('[Expectations] update normalizedExamples counts:', {
+        important: normalizedExamples?.important?.length || 0,
+        notImportant: normalizedExamples?.notImportant?.length || 0,
+      });
+      if (normalizedExamples) {
+        if (normalizedExamples.important.length > 10 || normalizedExamples.notImportant.length > 10) {
           res.status(400).json({
             error: 'Too many examples',
             message: 'Maximum 10 examples allowed for each category'
@@ -216,7 +281,7 @@ export class FilterController {
         {
           title,
           description,
-          examples
+          examples: normalizedExamples ?? undefined
         }
       );
 
@@ -673,28 +738,45 @@ export class FilterController {
       const proto = await embeddingService.generateEmbedding(expectationsText);
 
       // Load recent emails
-      const emails = await this.emailRepository.getEmailsForUser(userId, { limit, orderBy: 'received_at', orderDirection: 'DESC' });
+      const emails = await this.emailRepository.getEmailsForUser(userId, { limit: Math.max(limit, 200), orderBy: 'received_at', orderDirection: 'DESC' });
       const emailIds = emails.map(e => e.id);
 
       // Fetch vectors
       const vectors = await qdrantRepository.getVectorsByEmailIds(emailIds);
       const idToVector = new Map(vectors.map(v => [v.emailId, v.embedding]));
 
-      // Score
-      const scored = emails.map(e => {
-        const emb = idToVector.get(e.id);
-        const similarity = emb ? this.cosineSimilarity(proto, emb) : null;
-        return {
-          email: { id: e.id, subject: e.subject, sender: e.sender, receivedAt: e.receivedAt },
-          similarity,
-          hasVector: !!emb
-        };
-      });
+      // Group by conversation key (thread-aware)
+      const getThreadKey = (e: any) => {
+        const threadId = e?.metadata?.threadId;
+        if (threadId) return `thread:${threadId}`;
+        const subjectKey = this.normalizeSubject(e.subject || '');
+        const senderKey = (e.sender || '').toLowerCase().trim();
+        if (subjectKey) return `subj:${subjectKey}|from:${senderKey}`;
+        if (e.messageId) return `msg:${e.messageId}`;
+        return `email:${e.id}`;
+      };
 
-      // Sort by similarity desc (nulls last)
+      const byThread = new Map<string, { email: any; similarity: number | null; hasVector: boolean }>();
+      for (const e of emails) {
+        const emb = idToVector.get(e.id);
+        const sim = emb ? this.cosineSimilarity(proto, emb) : null;
+        const key = getThreadKey(e);
+        const prev = byThread.get(key);
+        // Keep the best similarity (max) as representative
+        if (!prev || ((sim ?? -1) > (prev.similarity ?? -1))) {
+          byThread.set(key, {
+            email: { id: e.id, subject: e.subject, sender: e.sender, receivedAt: e.receivedAt },
+            similarity: sim,
+            hasVector: !!emb,
+          });
+        }
+      }
+
+      const scored = Array.from(byThread.values());
       scored.sort((a, b) => (b.similarity ?? -1) - (a.similarity ?? -1));
 
-      res.json({ count: scored.length, results: scored });
+      // Return up to requested limit threads
+      res.json({ count: Math.min(limit, scored.length), results: scored.slice(0, limit) });
     } catch (error) {
       console.error('❌ Failed to compute prototype scores:', error);
       res.status(500).json({ error: 'Internal server error', message: 'Failed to compute prototype scores' });
@@ -730,27 +812,48 @@ export class FilterController {
       }
       for (let i = 0; i < dim; i++) centroid[i] /= vectors.length;
 
-      // Score by distance (1 - cosine similarity)
-      const scored = vectors.map(v => ({
-        emailId: v.emailId,
-        distance: 1 - this.cosineSimilarity(centroid, v.embedding)
-      }));
+      // Compute distances per email
+      const distances = vectors.map(v => ({ emailId: v.emailId, distance: 1 - this.cosineSimilarity(centroid, v.embedding) }));
 
-      scored.sort((a, b) => b.distance - a.distance);
-
-      // Get email metadata
-      const top = scored.slice(0, limit);
-      const emails = await this.emailRepository.getByIds(top.map(t => t.emailId));
+      // Load metadata to group by conversation key
+      const emails = await this.emailRepository.getByIds(distances.map(d => d.emailId));
       const emailById = new Map(emails.map(e => [e.id, e]));
-      const results = top.map(t => ({
-        email: emailById.get(t.emailId) ? {
-          id: emailById.get(t.emailId)!.id,
-          subject: emailById.get(t.emailId)!.subject,
-          sender: emailById.get(t.emailId)!.sender,
-          receivedAt: emailById.get(t.emailId)!.receivedAt
-        } : { id: t.emailId },
-        distance: t.distance
-      }));
+      const getThreadKey = (e: any) => {
+        const threadId = e?.metadata?.threadId;
+        if (threadId) return `thread:${threadId}`;
+        const subjectKey = this.normalizeSubject(e.subject || '');
+        const senderKey = (e.sender || '').toLowerCase().trim();
+        if (subjectKey) return `subj:${subjectKey}|from:${senderKey}`;
+        if (e.messageId) return `msg:${e.messageId}`;
+        return `email:${e.id}`;
+      };
+
+      // Reduce to one representative per thread (max distance)
+      const byThread = new Map<string, { emailId: string; distance: number }>();
+      for (const d of distances) {
+        const e = emailById.get(d.emailId);
+        const key = e ? getThreadKey(e) : `email:${d.emailId}`;
+        const prev = byThread.get(key);
+        if (!prev || d.distance > prev.distance) byThread.set(key, { emailId: d.emailId, distance: d.distance });
+      }
+
+      const threadResults = Array.from(byThread.values());
+      threadResults.sort((a, b) => b.distance - a.distance);
+      const top = threadResults.slice(0, limit);
+
+      const results = top.map(t => {
+        const e = emailById.get(t.emailId);
+        if (!e) return { email: { id: t.emailId }, distance: t.distance };
+        return {
+          email: {
+            id: e.id,
+            subject: e.subject,
+            sender: e.sender,
+            receivedAt: e.receivedAt,
+          },
+          distance: t.distance,
+        };
+      });
 
       res.json({ count: results.length, results });
     } catch (error) {
@@ -783,21 +886,51 @@ export class FilterController {
       const qdrantRepository = new QdrantRepository(qdrantUrl, qdrantApiKey);
       const proto = await embeddingService.generateEmbedding(this.buildExpectationsText(expectations));
 
-      // Vectors and scores
-      const vectors = await qdrantRepository.getUserVectors(userId);
-      if (vectors.length === 0) {
+      // Fast vector search in Qdrant to get top-K candidates
+      const K = 500; // coarse cap; we will dedupe and slice to percentile afterwards
+      const hits = await qdrantRepository.searchSimilar(proto, userId, K, 0.0);
+      if (hits.length === 0) {
         res.json({ count: 0, results: [] });
         return;
       }
-      const scored = vectors.map(v => ({ emailId: v.emailId, similarity: this.cosineSimilarity(proto, v.embedding) }));
-      scored.sort((a, b) => (b.similarity - a.similarity));
-      const take = Math.max(1, Math.ceil((percent / 100) * scored.length));
-      const top = scored.slice(0, take);
 
-      // Load metadata
-      const emails = await this.emailRepository.getByIds(top.map(t => t.emailId));
+      // Fetch metadata for candidate emails so we can dedupe by thread
+      const emails = await this.emailRepository.getByIds(hits.map(h => h.emailId));
       const emailById = new Map(emails.map(e => [e.id, e]));
-      const results = top.map(t => {
+
+      // Determine unique conversation keys across all emails (thread-aware + subject fallback)
+      const getThreadKey = (eid: string) => {
+        const e = emailById.get(eid);
+        if (!e) return `email:${eid}`;
+        // Prefer Gmail thread id
+        const threadId = e.metadata?.threadId;
+        if (threadId) return `thread:${threadId}`;
+        // Fallback: normalized subject + sender (helps when threadId missing but it's effectively the same thread)
+        const subjectKey = this.normalizeSubject(e.subject || '')
+        const senderKey = (e.sender || '').toLowerCase().trim();
+        if (subjectKey) return `subj:${subjectKey}|from:${senderKey}`;
+        // Last resort: message id
+        if (e.messageId) return `msg:${e.messageId}`;
+        return `email:${e.id}`;
+      };
+      const allThreadKeys = new Set<string>();
+      for (const h of hits) allThreadKeys.add(getThreadKey(h.emailId));
+
+      // Compute how many unique threads to take by percentile
+      const takeThreads = Math.max(1, Math.ceil((percent / 100) * allThreadKeys.size));
+
+      // Walk scored emails top-down, pick highest-similarity per thread only
+      const seenThreads = new Set<string>();
+      const picked: { emailId: string; similarity: number }[] = [];
+      for (const h of hits) {
+        const key = getThreadKey(h.emailId);
+        if (seenThreads.has(key)) continue;
+        seenThreads.add(key);
+        picked.push({ emailId: h.emailId, similarity: h.score });
+        if (picked.length >= takeThreads) break;
+      }
+
+      const results = picked.map(t => {
         const e = emailById.get(t.emailId);
         if (!e) return { email: { id: t.emailId }, similarity: t.similarity };
         return {
@@ -850,6 +983,84 @@ export class FilterController {
     }
     const denom = Math.sqrt(na) * Math.sqrt(nb);
     return denom === 0 ? 0 : dot / denom;
+  }
+
+  /**
+   * Normalize subject by removing common reply/forward prefixes and collapsing whitespace
+   */
+  private normalizeSubject(subject: string): string {
+    let s = subject.trim();
+    // Remove common prefixes: Re:, Fwd:, FW:, etc. Repeatedly strip
+    const prefixRe = /^(re|fwd|fw)\s*[:：\-]\s*/i;
+    for (let i = 0; i < 5; i++) {
+      if (prefixRe.test(s)) s = s.replace(prefixRe, ''); else break;
+    }
+    return s.replace(/\s+/g, ' ').toLowerCase();
+  }
+  
+  /**
+   * Normalize flexible examples input into the canonical shape { important: string[]; notImportant: string[] }
+   * Supports:
+   * - req.body.examples as {important, notImportant}
+   * - req.body.examples as string[] (treated as important)
+   * - req.body.examples as string (single important example)
+   * - req.body.selectedImportantEmailIds / selectedNotImportantEmailIds: derive examples from real emails
+   */
+  private async buildExamplesFromInput(
+    req: AuthenticatedRequest,
+  ): Promise<{ important: string[]; notImportant: string[] } | undefined> {
+    const body = req.body as Partial<CreateExpectationsRequest & UpdateExpectationsRequest>;
+    const userId = req.user!.id;
+
+    let important: string[] = [];
+    let notImportant: string[] = [];
+
+    // From examples field
+    if (body.examples) {
+      if (Array.isArray(body.examples)) {
+        important = important.concat(body.examples.filter(Boolean));
+      } else if (typeof body.examples === 'string') {
+        important.push(body.examples);
+      } else if (typeof body.examples === 'object') {
+        if (Array.isArray(body.examples.important)) important = important.concat(body.examples.important.filter(Boolean));
+        if (Array.isArray(body.examples.notImportant)) notImportant = notImportant.concat(body.examples.notImportant.filter(Boolean));
+      }
+    }
+
+    // From selected email IDs
+    const impIds = (body.selectedImportantEmailIds || []).slice(0, 20); // guard
+    const notImpIds = (body.selectedNotImportantEmailIds || []).slice(0, 20);
+
+    const allIds = Array.from(new Set([...impIds, ...notImpIds]));
+    if (allIds.length > 0) {
+      console.log('[Expectations] buildExamplesFromInput fetching emails by IDs:', { impIds: impIds.length, notImpIds: notImpIds.length, all: allIds.length });
+      const emails = await this.emailRepository.getByIds(allIds);
+      const userEmails = emails.filter(e => e.userId === userId);
+      const byId = new Map(userEmails.map(e => [e.id, e]));
+
+      const toExample = (id: string) => {
+        const e = byId.get(id);
+        if (!e) return null;
+        // Build a compact example text: subject + short snippet of content
+        const subject = e.subject || '';
+        const content = (e.content || '').replace(/\s+/g, ' ').trim();
+        const snippet = content.length > 400 ? content.slice(0, 400) + '…' : content;
+        return [subject, snippet].filter(Boolean).join(' — ');
+      };
+
+      important = important.concat(impIds.map(toExample).filter((v): v is string => !!v));
+      notImportant = notImportant.concat(notImpIds.map(toExample).filter((v): v is string => !!v));
+      console.log('[Expectations] buildExamplesFromInput resolved examples:', { important: important.length, notImportant: notImportant.length });
+    }
+
+    // If nothing provided, return null so caller can pass undefined
+    if (important.length === 0 && notImportant.length === 0) {
+      return undefined;
+    }
+
+    // Deduplicate and trim whitespace
+    const dedupe = (arr: string[]) => Array.from(new Set(arr.map(s => s.trim()).filter(Boolean)));
+    return { important: dedupe(important), notImportant: dedupe(notImportant) };
   }
   /**
    * Helper method to filter specific emails by IDs
