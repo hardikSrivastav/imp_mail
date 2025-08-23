@@ -63,7 +63,7 @@ export default function EmailDetailPage() {
         return <Badge variant="secondary">Not Important</Badge>
       case "unclassified":
       default:
-        return <Badge variant="outline">Unclassified</Badge>
+        return null
     }
   }
 
@@ -71,13 +71,11 @@ export default function EmailDetailPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background flex">
-          <div className="w-64 border-r bg-card">
-            <Navigation />
-          </div>
-          <div className="flex-1 p-8">
+          <Navigation />
+          <div className="flex-1 p-4 lg:p-8">
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-              Loading email...
+              <span className="text-sm lg:text-base">Loading email...</span>
             </div>
           </div>
         </div>
@@ -89,17 +87,15 @@ export default function EmailDetailPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background flex">
-          <div className="w-64 border-r bg-card">
-            <Navigation />
-          </div>
-          <div className="flex-1 p-8">
+          <Navigation />
+          <div className="flex-1 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
-              <Button onClick={() => router.back()} variant="ghost" className="mb-6">
+              <Button onClick={() => router.back()} variant="ghost" className="mb-6 w-full sm:w-auto">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                <p className="text-destructive">{error || "Email not found"}</p>
+                <p className="text-destructive text-sm lg:text-base">{error || "Email not found"}</p>
               </div>
             </div>
           </div>
@@ -111,16 +107,14 @@ export default function EmailDetailPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <Button onClick={() => router.back()} variant="ghost">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <Button onClick={() => router.back()} variant="ghost" className="w-full sm:w-auto">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to emails
               </Button>
@@ -130,7 +124,7 @@ export default function EmailDetailPage() {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
                       <MoreHorizontal className="h-4 w-4 mr-2" />
                       Actions
                     </Button>

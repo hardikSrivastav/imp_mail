@@ -531,18 +531,46 @@ export class FilterController {
   /**
    * POST /api/digest/send-now
    * Compute a digest for the current user and record it as sent (no email delivery here)
-   * Body: { windowHours?: number, minItems?: number, emailFilter?: 'all' | 'important', dryRun?: boolean }
+   * Body: { 
+   *   windowHours?: number, 
+   *   minItems?: number, 
+   *   emailFilter?: 'all' | 'important', 
+   *   dryRun?: boolean,
+   *   generateSummaries?: boolean,
+   *   skipSummaries?: boolean
+   * }
    */
   async sendDigestNow(req: AuthenticatedRequest, res: Response): Promise<void> {
-try {
+    try {
       const userId = req.user!.id;
-      const { windowHours, minItems, emailFilter, dryRun } = req.body || {};
+      const { 
+        windowHours, 
+        minItems, 
+        emailFilter, 
+        dryRun, 
+        generateSummaries, 
+        skipSummaries 
+      } = req.body || {};
+      
       const digestService = new DigestService();
-      const items = await digestService.computeDigestForUser(userId, { windowHours, minItems, emailFilter });
+      const items = await digestService.computeDigestForUser(userId, { 
+        windowHours, 
+        minItems, 
+        emailFilter,
+        generateSummaries,
+        skipSummaries
+      });
+      
       if (!dryRun) {
         await digestService.recordDigestSent(userId, items, { emailFilter });
       }
-      res.json({ count: items.length, results: items, recorded: !dryRun });
+      
+      res.json({ 
+        count: items.length, 
+        results: items, 
+        recorded: !dryRun,
+        hasSummaries: items.some(item => !!item.summary)
+      });
     } catch (error) {
       console.error('❌ Failed to compute/send digest:', error);
       res.status(500).json({ error: 'Internal server error', message: 'Failed to compute/send digest' });

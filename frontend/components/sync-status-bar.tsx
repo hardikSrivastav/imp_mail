@@ -74,12 +74,12 @@ export function SyncStatusBar() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <CardTitle className="text-lg">Sync Status</CardTitle>
-            <CardDescription>Email indexing and synchronization</CardDescription>
+            <CardDescription className="text-sm">Email indexing and synchronization</CardDescription>
           </div>
-          <Badge variant={isSyncing ? "default" : "secondary"}>{isSyncing ? "Syncing" : "Idle"}</Badge>
+          <Badge variant={isSyncing ? "default" : "secondary"} className="self-start sm:self-auto">{isSyncing ? "Syncing" : "Idle"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -136,12 +136,12 @@ export function SyncStatusBar() {
           </div>
         )}
 
-        <div className="flex gap-2">
-          <Button onClick={handleTriggerIncremental} disabled={isSyncing} variant="outline" size="sm">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={handleTriggerIncremental} disabled={isSyncing} variant="outline" size="sm" className="w-full sm:w-auto">
             {isSyncing || isFetching ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Incremental Sync
           </Button>
-          <Button onClick={handleTriggerSync} disabled={isSyncing} variant="outline" size="sm">
+          <Button onClick={handleTriggerSync} disabled={isSyncing} variant="outline" size="sm" className="w-full sm:w-auto">
             {isSyncing || isFetching ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
             Full Sync
           </Button>
@@ -158,6 +158,7 @@ export function SyncStatusBar() {
               }}
               variant={autoEnabled ? "default" : "outline"}
               size="sm"
+              className="w-full sm:w-auto"
             >
               {autoEnabled ? 'Auto Sync: On' : 'Auto Sync: Off'}
             </Button>

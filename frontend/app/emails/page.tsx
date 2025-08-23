@@ -36,7 +36,14 @@ export default function EmailsPage() {
       const emailsData = hasQuery ? (response.data.results?.map((r: any) => r.email) || []) : (response.data.emails || [])
 
       setEmails(emailsData)
-      setTotalEmails(hasQuery ? (response.data.results?.length || emailsData.length) : (response.data.pagination?.total ?? emailsData.length))
+      const total = hasQuery ? (response.data.pagination?.total ?? emailsData.length) : (response.data.pagination?.total ?? emailsData.length)
+      setTotalEmails(total)
+      
+      // If current page exceeds total pages, reset to page 1
+      const totalPages = Math.ceil(total / itemsPerPage)
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(1)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch emails")
     } finally {
@@ -67,20 +74,18 @@ export default function EmailsPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold">Emails</h1>
-                <p className="text-muted-foreground mt-2">Manage and filter your emails</p>
+                <h1 className="text-2xl lg:text-3xl font-bold">Emails</h1>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">Manage and filter your emails</p>
               </div>
-              <Button onClick={fetchEmails} disabled={loading} variant="outline">
+              <Button onClick={fetchEmails} disabled={loading} variant="outline" className="w-full sm:w-auto">
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
@@ -101,7 +106,7 @@ export default function EmailsPage() {
             {/* Error state */}
             {error && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                <p className="text-destructive">{error}</p>
+                <p className="text-destructive text-sm">{error}</p>
               </div>
             )}
 
@@ -109,7 +114,7 @@ export default function EmailsPage() {
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                Loading emails...
+                <span className="text-sm lg:text-base">Loading emails...</span>
               </div>
             )}
 
@@ -123,9 +128,9 @@ export default function EmailsPage() {
                     ))
                   ) : (
                     <div className="text-center py-12">
-                      <p className="text-muted-foreground">No emails found</p>
+                      <p className="text-muted-foreground text-sm lg:text-base">No emails found</p>
                       {searchQuery && (
-                        <p className="text-sm text-muted-foreground mt-2">Try adjusting your search query</p>
+                        <p className="text-xs lg:text-sm text-muted-foreground mt-2">Try adjusting your search query</p>
                       )}
                     </div>
                   )}

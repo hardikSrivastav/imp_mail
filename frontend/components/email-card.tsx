@@ -41,7 +41,7 @@ export function EmailCard({ email, onImportanceChange }: EmailCardProps) {
         return <Badge variant="secondary">Not Important</Badge>
       case "unclassified":
       default:
-        return <Badge variant="outline">Unclassified</Badge>
+        return null // No badge for unclassified emails
     }
   }
 
@@ -62,16 +62,16 @@ export function EmailCard({ email, onImportanceChange }: EmailCardProps) {
     <Card
       className={cn("hover:bg-accent/50 transition-colors", email.importance === "important" && "border-green-600/50")}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
+      <CardContent className="p-3 lg:p-4">
+        <div className="flex items-start justify-between gap-3 lg:gap-4">
           <Link href={`/emails/${email.id}`} className="flex-1 min-w-0">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-medium truncate">{email.subject}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
+                <h3 className="font-medium text-sm lg:text-base break-words">{email.subject}</h3>
                 {getSimilarityBadge(email.similarity)}
               </div>
 
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-muted-foreground gap-1 sm:gap-0">
                 <span className="truncate">{email.sender}</span>
                 <span className="shrink-0">{formatDate(email.receivedAt)}</span>
               </div>

@@ -370,6 +370,29 @@ export const migrations: Migration[] = [
     down: async (db: Database) => {
       await db.exec('DROP TABLE IF EXISTS user_expectations;');
     }
+  },
+  {
+    version: 11,
+    name: 'create_email_summary_cache_table',
+    up: async (db: Database) => {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS email_summary_cache (
+          id TEXT PRIMARY KEY,
+          content_hash TEXT UNIQUE NOT NULL,
+          summary TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // Create indexes for performance
+      await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_email_summary_cache_hash ON email_summary_cache(content_hash);
+        CREATE INDEX IF NOT EXISTS idx_email_summary_cache_created_at ON email_summary_cache(created_at);
+      `);
+    },
+    down: async (db: Database) => {
+      await db.exec('DROP TABLE IF EXISTS email_summary_cache;');
+    }
   }
 ];
 

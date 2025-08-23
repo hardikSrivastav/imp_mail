@@ -25,22 +25,43 @@ AI-powered email filtering system for Ashoka University that learns user prefere
    ```bash
    git clone <repository>
    cd intelligent-email-filter
-   cp .env.example .env
+   cp env.template .env
    ```
 
 2. **Configure environment variables in `.env`:**
-   - Add Google OAuth credentials
-   - Add LLM API key
-   - Generate JWT and encryption secrets
+   
+   **Required Configuration:**
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
+   - `OPENAI_API_KEY` - OpenAI API key for AI features
+   - `JWT_SECRET` and `ENCRYPTION_KEY` - Generate secure secrets
+   
+   **Email Delivery (Required for Digest Feature):**
+   ```bash
+   # Gmail Configuration (Recommended)
+   EMAIL_SERVICE=gmail
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASSWORD=your-gmail-app-password
+   EMAIL_FROM=your-email@gmail.com
+   ```
+   
+   **Gmail Setup Instructions:**
+   - Enable 2-factor authentication on your Gmail account
+   - Generate an App Password: Google Account → Security → 2-Step Verification → App passwords
+   - Use the generated password as `EMAIL_PASSWORD`
 
 3. **Start services:**
    ```bash
    docker-compose up -d
    ```
 
-4. **Check health:**
+4. **Test email configuration (optional):**
    ```bash
-   curl http://localhost:3000/health
+   npm run check-email
+   ```
+
+5. **Check health:**
+   ```bash
+   curl http://localhost:3005/health
    ```
 
 ## Development
@@ -59,6 +80,9 @@ npm test
 
 # Build for production
 npm run build
+
+# Test email configuration
+npm run check-email
 ```
 
 ### Docker Development

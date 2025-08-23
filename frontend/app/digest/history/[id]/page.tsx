@@ -95,10 +95,10 @@ export default function DigestDetailPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background flex">
-          <div className="w-64 border-r bg-card">
+          <div className="hidden lg:block w-64 border-r bg-card">
             <Navigation />
           </div>
-          <div className="flex-1 p-8">
+          <div className="flex-1 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <Card>
                 <CardContent className="pt-6">
@@ -116,15 +116,15 @@ export default function DigestDetailPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background flex">
-          <div className="w-64 border-r bg-card">
+          <div className="hidden lg:block w-64 border-r bg-card">
             <Navigation />
           </div>
-          <div className="flex-1 p-8">
+          <div className="flex-1 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-destructive">{error}</div>
-                  <Button onClick={() => router.back()} className="mt-4">
+                  <Button onClick={() => router.back()} className="mt-4 w-full sm:w-auto">
                     Go Back
                   </Button>
                 </CardContent>
@@ -140,15 +140,15 @@ export default function DigestDetailPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background flex">
-          <div className="w-64 border-r bg-card">
+          <div className="hidden lg:block w-64 border-r bg-card">
             <Navigation />
           </div>
-          <div className="flex-1 p-8">
+          <div className="flex-1 p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-muted-foreground">Digest not found</div>
-                  <Button onClick={() => router.back()} className="mt-4">
+                  <Button onClick={() => router.back()} className="mt-4 w-full sm:w-auto">
                     Go Back
                   </Button>
                 </CardContent>
@@ -163,14 +163,14 @@ export default function DigestDetailPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
-        <div className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
+        
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
             <div className="flex items-center gap-4">
               <Link href="/digest/history">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="w-full sm:w-auto">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to History
                 </Button>
@@ -179,26 +179,26 @@ export default function DigestDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Digest Details</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg lg:text-xl">Digest Details</CardTitle>
+                <CardDescription className="text-sm">
                   {formatDate(digestDetails.digest.sentAt)}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <div className="text-sm font-medium">Threads</div>
-                    <div className="text-2xl font-bold">{digestDetails.digest.threadsCount}</div>
+                    <div className="text-xl lg:text-2xl font-bold">{digestDetails.digest.threadsCount}</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm font-medium">Window</div>
-                    <div className="text-2xl font-bold">{digestDetails.digest.windowHours}h</div>
+                    <div className="text-xl lg:text-2xl font-bold">{digestDetails.digest.windowHours}h</div>
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm font-medium">Threshold</div>
-                    <div className="text-2xl font-bold">{(digestDetails.digest.threshold * 100).toFixed(0)}%</div>
+                    <div className="text-xl lg:text-2xl font-bold">{(digestDetails.digest.threshold * 100).toFixed(0)}%</div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-2 lg:col-span-1">
                     <div className="text-sm font-medium">Filter & Delivery</div>
                     <div className="flex flex-col gap-1">
                       <Badge className={getFilterBadgeColor(digestDetails.digest.emailFilter)} variant="secondary">
@@ -215,8 +215,8 @@ export default function DigestDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Email Threads ({digestDetails.emails.length})</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg lg:text-xl">Email Threads ({digestDetails.emails.length})</CardTitle>
+                <CardDescription className="text-sm">
                   {digestDetails.emails.length === 0 
                     ? "No emails in this digest" 
                     : "Emails included in this digest, ordered by relevance"
@@ -225,26 +225,26 @@ export default function DigestDetailPage() {
               </CardHeader>
               <CardContent>
                 {digestDetails.emails.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground text-sm lg:text-base">
                     No emails met the criteria for this digest.
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {digestDetails.emails.map((email) => (
-                      <div key={email.emailId} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2">
+                      <div key={email.emailId} className="border rounded-lg p-3 lg:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
                           <div className="space-y-1 flex-1">
-                            <h3 className="font-medium text-sm">
+                            <h3 className="font-medium text-sm lg:text-base break-words">
                               {email.subject || '(No Subject)'}
                             </h3>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
                               <span>{email.sender}</span>
-                              <span>•</span>
+                              <span className="hidden sm:inline">•</span>
                               <span>{formatShortDate(email.receivedAt)}</span>
                               {email.similarity > 0 && (
                                 <>
-                                  <span>•</span>
-                                  <Badge variant="outline" className="text-xs">
+                                  <span className="hidden sm:inline">•</span>
+                                  <Badge variant="outline" className="text-xs self-start sm:self-auto">
                                     {(email.similarity * 100).toFixed(1)}% relevant
                                   </Badge>
                                 </>
@@ -252,7 +252,7 @@ export default function DigestDetailPage() {
                             </div>
                           </div>
                           <Link href={`/emails/${email.emailId}`}>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
                               View Email
                             </Button>
                           </Link>

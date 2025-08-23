@@ -159,17 +159,15 @@ export default function BulkLabelPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8">
             <div>
-              <h1 className="text-3xl font-bold">Bulk Email Labeling</h1>
-              <p className="text-muted-foreground mt-2">
+              <h1 className="text-2xl lg:text-3xl font-bold">Bulk Email Labeling</h1>
+              <p className="text-muted-foreground mt-2 text-sm lg:text-base">
                 Select emails and label them as important or unimportant in bulk. This will help train the AI classifier.
               </p>
             </div>
@@ -184,6 +182,17 @@ export default function BulkLabelPage() {
             {success && (
               <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">
                 {success}
+              </div>
+            )}
+
+            {/* Show initial training encouragement if user has very few examples */}
+            {modelStats && modelStats.total_examples < 10 && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                💡 <strong>Tip:</strong> You need at least 10 labeled examples to train the AI classifier. 
+                You currently have {modelStats.total_examples} examples. 
+                {modelStats.total_examples === 0 && (
+                  <span>Consider using the <strong>Setup AI Training</strong> option in the sidebar to get started quickly.</span>
+                )}
               </div>
             )}
 
@@ -202,7 +211,7 @@ export default function BulkLabelPage() {
                   <CardTitle className="text-lg">Selection Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-6 text-sm">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{importantIds.length}</span>
                       <span className="text-muted-foreground">important emails</span>
@@ -224,10 +233,10 @@ export default function BulkLabelPage() {
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
                     Important Emails
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Select emails that are important to you
                   </CardDescription>
                 </CardHeader>
@@ -242,10 +251,10 @@ export default function BulkLabelPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
                     Unimportant Emails
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Select emails that are not important to you
                   </CardDescription>
                 </CardHeader>
@@ -260,12 +269,12 @@ export default function BulkLabelPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <Button 
                 variant="outline" 
                 onClick={handleReset}
                 disabled={isSubmitting || isResetting}
-                className="min-w-[100px]"
+                className="w-full sm:w-auto min-w-[100px]"
               >
                 {isResetting ? (
                   <>
@@ -279,7 +288,7 @@ export default function BulkLabelPage() {
               <Button 
                 onClick={handleSubmit} 
                 disabled={!canSubmit || isSubmitting || isResetting}
-                className="min-w-[120px]"
+                className="w-full sm:w-auto min-w-[120px]"
               >
                 {isSubmitting ? (
                   <>
@@ -298,15 +307,15 @@ export default function BulkLabelPage() {
             {classificationResults && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 text-base lg:text-lg">
                     AI Predictions for Unclassified Emails
                     {classificationResults.model_version === "not_trained" && (
-                      <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                      <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded self-start sm:self-auto">
                         Model Not Trained
                       </span>
                     )}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     {classificationResults.model_version === "not_trained" 
                       ? "Your model needs more training examples before it can classify emails. Continue labeling emails to train the AI."
                       : "The AI classifier's predictions for unclassified emails in your inbox. These predictions help you see how well the model learned from your labeled examples."
@@ -316,7 +325,7 @@ export default function BulkLabelPage() {
                 <CardContent>
                   <div className="space-y-3">
                     {classificationResults.results?.map((result: any) => (
-                      <div key={result.email_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={result.email_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-2 sm:gap-0">
                         <div className="flex-1">
                           <div className="text-sm font-medium">
                             {result.email_id.length > 20 ? `${result.email_id.substring(0, 20)}...` : result.email_id}
@@ -330,7 +339,7 @@ export default function BulkLabelPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
                           <span className={`px-2 py-1 text-xs rounded-full ${
                             result.is_important 
                               ? 'bg-green-100 text-green-800' 
@@ -346,7 +355,7 @@ export default function BulkLabelPage() {
                   {/* Classification Summary */}
                   <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                     <div className="text-sm font-medium mb-2">Classification Summary</div>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div>
                         <span className="text-muted-foreground">Total classified:</span>
                         <span className="ml-2 font-medium">{classificationResults.results?.length || 0}</span>

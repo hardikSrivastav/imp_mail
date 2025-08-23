@@ -89,20 +89,18 @@ export default function ScoresPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold">Insights</h1>
-                <p className="text-muted-foreground mt-2">Analyze email patterns and similarity to your expectations</p>
+                <h1 className="text-2xl lg:text-3xl font-bold">Insights</h1>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">Analyze email patterns and similarity to your expectations</p>
               </div>
-              <Button onClick={fetchScores} variant="outline" disabled={loading}>
+              <Button onClick={fetchScores} variant="outline" disabled={loading} className="w-full sm:w-auto">
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
@@ -111,13 +109,13 @@ export default function ScoresPage() {
             <InsightsNavigation />
 
             {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Total Emails</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{scores.length}</div>
+                  <div className="text-xl lg:text-2xl font-bold">{scores.length}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -125,7 +123,7 @@ export default function ScoresPage() {
                   <CardTitle className="text-sm font-medium">Average Score</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{Math.round(stats.avg * 100)}%</div>
+                  <div className="text-xl lg:text-2xl font-bold">{Math.round(stats.avg * 100)}%</div>
                 </CardContent>
               </Card>
               <Card>
@@ -133,7 +131,7 @@ export default function ScoresPage() {
                   <CardTitle className="text-sm font-medium">Highest Score</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{Math.round(stats.high * 100)}%</div>
+                  <div className="text-xl lg:text-2xl font-bold">{Math.round(stats.high * 100)}%</div>
                 </CardContent>
               </Card>
               <Card>
@@ -141,7 +139,7 @@ export default function ScoresPage() {
                   <CardTitle className="text-sm font-medium">Lowest Score</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{Math.round(stats.low * 100)}%</div>
+                  <div className="text-xl lg:text-2xl font-bold">{Math.round(stats.low * 100)}%</div>
                 </CardContent>
               </Card>
             </div>
@@ -149,11 +147,11 @@ export default function ScoresPage() {
             {/* Main content */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                   <BarChart3 className="h-5 w-5" />
                   Similarity Scores
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Diagnostic view of how each email scores against your expectations prototype
                 </CardDescription>
               </CardHeader>
@@ -172,14 +170,14 @@ export default function ScoresPage() {
 
                   {error && (
                     <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                      <p className="text-destructive">{error}</p>
+                      <p className="text-destructive text-sm">{error}</p>
                     </div>
                   )}
 
                   {loading && (
                     <div className="flex items-center justify-center py-12">
                       <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                      Loading similarity scores...
+                      <span className="text-sm lg:text-base">Loading similarity scores...</span>
                     </div>
                   )}
 
@@ -190,15 +188,15 @@ export default function ScoresPage() {
                           .sort((a, b) => b.similarity - a.similarity)
                           .map((score) => (
                             <Link key={score.id} href={`/emails/${score.id}`}>
-                              <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors gap-2 sm:gap-0">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-medium truncate">{score.subject}</h3>
-                                  <div className="flex items-center justify-between text-sm text-muted-foreground mt-1">
+                                  <h3 className="font-medium text-sm lg:text-base break-words">{score.subject}</h3>
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-muted-foreground mt-1 gap-1 sm:gap-0">
                                     <span className="truncate">{score.sender}</span>
                                     <span>{new Date(score.receivedAt).toLocaleDateString()}</span>
                                   </div>
                                 </div>
-                                <div className="ml-4">
+                                <div className="sm:ml-4 self-start sm:self-auto">
                                   <SimilarityBadge similarity={score.similarity} />
                                 </div>
                               </div>
@@ -207,10 +205,10 @@ export default function ScoresPage() {
                       ) : (
                         <div className="text-center py-12">
                           <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground">
+                          <p className="text-muted-foreground text-sm lg:text-base">
                             {searchQuery ? "No emails match your search" : "No similarity scores available"}
                           </p>
-                          <p className="text-sm text-muted-foreground mt-2">
+                          <p className="text-xs lg:text-sm text-muted-foreground mt-2">
                             {searchQuery
                               ? "Try adjusting your search query"
                               : "Make sure your expectations are set up and emails are classified"}

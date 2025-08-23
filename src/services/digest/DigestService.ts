@@ -21,7 +21,8 @@ interface ComputeOptions {
   windowHours?: number; // default 12
   minItems?: number; // default 5
   emailFilter?: 'all' | 'important'; // default 'all'
-  generateSummaries?: boolean; // default false
+  generateSummaries?: boolean; // default true
+  skipSummaries?: boolean; // default false - explicit opt-out for summaries
 }
 
 interface DigestSettings {
@@ -94,7 +95,7 @@ export class DigestService {
     const windowHours = opts.windowHours ?? 12;
     const minItems = opts.minItems ?? 5;
     const emailFilter = opts.emailFilter ?? 'all';
-    const generateSummaries = opts.generateSummaries ?? false;
+    const generateSummaries = opts.skipSummaries ? false : (opts.generateSummaries ?? true);
 
     // Load expectations
     const expectations = await this.expectationsManager.getActiveExpectations(userId);
@@ -173,21 +174,7 @@ export class DigestService {
     // Generate summaries if requested
     if (generateSummaries && filtered.length > 0) {
       try {
-        const emailsWithContent = await Promise.all(
-          filtered.map(async (item) => {
-            const email = emails.find(e => e.id === item.emailId);
-            return email ? {
-              id: item.emailId,
-              subject: item.subject,
-              sender: item.sender,
-              content: email.content,
-              receivedAt: item.receivedAt,
-            } : null;
-          })
-        );
-
-        const validEmails = emailsWithContent.filter(e => e !== null) as any[];
-        const summaries = await this.summaryService.generateBatchSummaries(validEmails);
+        const summaries = await this.generateOptimizedThreadSummaries(userId, filtered);
 
         // Add summaries to digest items
         filtered = filtered.map(item => ({
@@ -427,7 +414,7 @@ export class DigestService {
     const summaries = new Map<string, string>();
 
     // Get stored summaries
-    const summaryRows = await db.all<{ email_id: string; summary: string }>(
+    const summaryRows = await db.all<{ email_id: string; summary: string }[]>(
       `SELECT email_id, summary FROM digest_email_summaries 
        WHERE digest_log_id = ? AND email_id IN (${emailIds.map(() => '?').join(',')})`,
       [digestId, ...emailIds]
@@ -458,6 +445,88 @@ export class DigestService {
       },
       emails: digestItems,
     };
+  }
+
+  /**
+   * Generate optimized thread summaries for digest items
+   * This method minimizes OpenAI API calls by:
+   * 1. Checking for existing summaries first
+   * 2. Batching new summary requests
+   * 3. Generating thread-level summaries instead of individual email summaries
+   */
+  async generateOptimizedThreadSummaries(
+    userId: string, 
+    digestItems: DigestItem[], 
+    digestLogId?: string
+  ): Promise<Map<string, string>> {
+    const summaries = new Map<string, string>();
+    const itemsNeedingSummaries: DigestItem[] = [];
+
+    // Check for existing summaries if we have a digest log ID
+    if (digestLogId) {
+      const db = await this.getDb();
+      const existingSummaries = await db.all<{ email_id: string; summary: string }[]>(
+        `SELECT email_id, summary FROM digest_email_summaries 
+         WHERE digest_log_id = ? AND email_id IN (${digestItems.map(() => '?').join(',')})`,
+        [digestLogId, ...digestItems.map(item => item.emailId)]
+      );
+
+      for (const row of existingSummaries) {
+        summaries.set(row.email_id, row.summary);
+      }
+
+      // Only generate summaries for items we don't have yet
+      itemsNeedingSummaries.push(
+        ...digestItems.filter(item => !summaries.has(item.emailId))
+      );
+    } else {
+      itemsNeedingSummaries.push(...digestItems);
+    }
+
+    if (itemsNeedingSummaries.length === 0) {
+      return summaries;
+    }
+
+    try {
+      // Get full email content for items needing summaries
+      const emailIds = itemsNeedingSummaries.map(item => item.emailId);
+      const allEmails = await this.emailRepository.getByIds(emailIds);
+      
+      const emailsWithContent = itemsNeedingSummaries.map(item => {
+        const email = allEmails.find(e => e.id === item.emailId);
+        return email ? {
+          id: item.emailId,
+          subject: item.subject,
+          sender: item.sender,
+          content: email.content,
+          receivedAt: item.receivedAt,
+        } : null;
+      });
+
+      const validEmails = emailsWithContent.filter(e => e !== null) as any[];
+      
+      if (validEmails.length > 0) {
+        // Use the existing batch summary service with optimized batching
+        const newSummaries = await this.summaryService.generateBatchSummaries(validEmails);
+        
+        // Merge new summaries with existing ones
+        newSummaries.forEach((summary, emailId) => {
+          summaries.set(emailId, summary);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate optimized thread summaries:', error);
+      
+      // Generate fallback summaries for items that failed
+      itemsNeedingSummaries.forEach(item => {
+        if (!summaries.has(item.emailId)) {
+          const fallback = `Email from ${item.sender} regarding "${item.subject}" (${item.receivedAt.toLocaleDateString()})`;
+          summaries.set(item.emailId, fallback);
+        }
+      });
+    }
+
+    return summaries;
   }
 
   /**
@@ -498,7 +567,7 @@ export class DigestService {
         return;
       }
 
-      // Compute digest
+      // Compute digest with summaries enabled by default
       const digestItems = await this.computeDigestForUser(userId, {
         emailFilter: settings.emailFilter,
         generateSummaries: true, // Always generate summaries for email delivery

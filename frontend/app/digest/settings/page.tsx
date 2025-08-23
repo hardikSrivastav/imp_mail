@@ -88,38 +88,38 @@ export default function DigestSettingsPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
-        <div className="flex-1 p-8">
-          <div className="max-w-3xl mx-auto space-y-6">
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
+        
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-3xl mx-auto space-y-4 lg:space-y-6">
             <div>
-              <h1 className="text-3xl font-bold">Digest Settings</h1>
-              <p className="text-muted-foreground mt-2">Configure when to receive relevant thread digests</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Digest Settings</h1>
+              <p className="text-muted-foreground mt-2 text-sm lg:text-base">Configure when to receive relevant thread digests</p>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>Enable and schedule your digests</CardDescription>
+                <CardTitle className="text-lg lg:text-xl">Preferences</CardTitle>
+                <CardDescription className="text-sm">Enable and schedule your digests</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {error && <div className="text-sm text-destructive">{error}</div>}
                 {message && <div className="text-sm text-green-600">{message}</div>}
 
                 <div className="flex items-center justify-between">
-                  <Label>Enable digest</Label>
+                  <Label className="text-sm lg:text-base">Enable digest</Label>
                   <Switch checked={enabled} onCheckedChange={setEnabled} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Times (24h, HH:MM) - Max 2 per day</Label>
+                  <Label className="text-sm lg:text-base">Times (24h, HH:MM) - Max 2 per day</Label>
                   <div className="space-y-2">
                     {times.map((t, i) => (
-                      <div key={i} className="flex gap-2">
+                      <div key={i} className="flex flex-col sm:flex-row gap-2">
                         <Input value={t} onChange={(e) => updateTime(i, e.target.value)} placeholder="11:00" className="max-w-[160px]" />
                         {times.length > 1 && (
-                          <Button type="button" variant="ghost" onClick={() => removeTime(i)}>
+                          <Button type="button" variant="ghost" onClick={() => removeTime(i)} className="w-full sm:w-auto">
                             Remove
                           </Button>
                         )}
@@ -127,17 +127,17 @@ export default function DigestSettingsPage() {
                     ))}
                   </div>
                   {times.length < 2 && (
-                    <Button type="button" variant="outline" onClick={addTime}>Add time</Button>
+                    <Button type="button" variant="outline" onClick={addTime} className="w-full sm:w-auto">Add time</Button>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Timezone</Label>
+                  <Label className="text-sm lg:text-base">Timezone</Label>
                   <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Asia/Kolkata" className="max-w-[260px]" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email Filter</Label>
+                  <Label className="text-sm lg:text-base">Email Filter</Label>
                   <Select value={emailFilter} onValueChange={(value: 'all' | 'important') => setEmailFilter(value)}>
                     <SelectTrigger className="max-w-[260px]">
                       <SelectValue />
@@ -153,7 +153,7 @@ export default function DigestSettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email Delivery</Label>
+                  <Label className="text-sm lg:text-base">Email Delivery</Label>
                   <Select value={emailDelivery} onValueChange={(value: 'email' | 'none') => setEmailDelivery(value)}>
                     <SelectTrigger className="max-w-[260px]">
                       <SelectValue />
@@ -168,10 +168,12 @@ export default function DigestSettingsPage() {
                   </p>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={save} disabled={saving || loading}>{saving ? 'Saving…' : 'Save Settings'}</Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={save} disabled={saving || loading} className="w-full sm:w-auto">
+                    {saving ? 'Saving…' : 'Save Settings'}
+                  </Button>
                   {emailDelivery === 'email' && (
-                    <Button onClick={testEmail} variant="outline" disabled={testing || loading}>
+                    <Button onClick={testEmail} variant="outline" disabled={testing || loading} className="w-full sm:w-auto">
                       {testing ? 'Sending…' : 'Test Email'}
                     </Button>
                   )}

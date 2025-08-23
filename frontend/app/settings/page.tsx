@@ -32,17 +32,15 @@ export default function SettingsPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-8">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-6 lg:space-y-8">
             <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
-              <p className="text-muted-foreground mt-2">Manage your account, monitor system status, and application preferences</p>
+              <h1 className="text-2xl lg:text-3xl font-bold">Settings</h1>
+              <p className="text-muted-foreground mt-2 text-sm lg:text-base">Manage your account, monitor system status, and application preferences</p>
             </div>
 
             {/* Sync Status Section */}
@@ -52,13 +50,13 @@ export default function SettingsPage() {
             {modelStats && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                     AI Model Training Status
                   </CardTitle>
-                  <CardDescription>Current status of your personalized email classification model</CardDescription>
+                  <CardDescription className="text-sm">Current status of your personalized email classification model</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Total examples:</span>
                       <span className="ml-2 font-medium">{modelStats.total_examples}</span>
@@ -106,25 +104,25 @@ export default function SettingsPage() {
             {/* Account Information Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                   Account Information
                 </CardTitle>
-                <CardDescription>Your current account details</CardDescription>
+                <CardDescription className="text-sm">Your current account details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {user && (
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Email</span>
-                      <span className="font-medium">{user.email}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <span className="text-muted-foreground text-sm">Email</span>
+                      <span className="font-medium text-sm break-all">{user.email}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name</span>
-                      <span className="font-medium">{user.name}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <span className="text-muted-foreground text-sm">Name</span>
+                      <span className="font-medium text-sm">{user.name}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">User ID</span>
-                      <span className="font-medium">{user.id}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <span className="text-muted-foreground text-sm">User ID</span>
+                      <span className="font-medium text-sm break-all">{user.id}</span>
                     </div>
                   </div>
                 )}
@@ -136,8 +134,6 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-
-
           </div>
         </div>
       </div>

@@ -31,7 +31,7 @@ export function InsightsNavigation() {
   const pathname = usePathname()
 
   return (
-    <div className="flex gap-2 mb-6">
+    <div className="flex flex-col sm:flex-row gap-2 mb-6">
       {insightRoutes.map((route) => {
         const Icon = route.icon
         const isActive = pathname === route.href
@@ -40,7 +40,7 @@ export function InsightsNavigation() {
           <Link key={route.href} href={route.href}>
             <Button
               variant={isActive ? "default" : "outline"}
-              className={cn("flex items-center gap-2", isActive && "bg-primary text-primary-foreground")}
+              className={cn("flex items-center gap-2 w-full sm:w-auto", isActive && "bg-primary text-primary-foreground")}
             >
               <Icon className="h-4 w-4" />
               {route.name}

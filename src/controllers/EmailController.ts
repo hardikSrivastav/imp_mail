@@ -169,6 +169,14 @@ export class EmailController {
       }
 
       const results = await this.emailSearchService.search(userId, params.search, options);
+      
+      // Get total count for pagination (without limit/offset)
+      const total = await this.emailSearchService.getSearchCount(userId, params.search, {
+        importance: options.importance,
+        sender: options.sender,
+        dateFrom: options.dateFrom,
+        dateTo: options.dateTo,
+      });
 
       res.json({
         results,
@@ -178,7 +186,7 @@ export class EmailController {
         pagination: {
           limit: options.limit,
           offset: options.offset,
-          total: results.length
+          total
         }
       });
     } catch (error) {

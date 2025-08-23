@@ -245,6 +245,28 @@ export class EmailSearchService {
   }
 
   /**
+   * Get total count of search results (for pagination)
+   * Note: For semantic and combined search, this returns an approximation based on text search
+   * since getting exact counts for semantic search would be expensive
+   */
+  async getSearchCount(
+    userId: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<number> {
+    try {
+      // For text search or as approximation for other search types,
+      // use the repository's text search count
+      return await this.emailRepository.getSearchEmailsCount(userId, query, {
+        importance: options.importance
+      });
+    } catch (error) {
+      console.error('❌ Failed to get search count:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get emails with filtering (no search query)
    */
   async getFilteredEmails(

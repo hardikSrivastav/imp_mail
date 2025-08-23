@@ -368,6 +368,45 @@ export class EmailRepository {
   }
 
   /**
+   * Get count of search results with the same filters as searchEmails
+   */
+  async getSearchEmailsCount(
+    userId: string,
+    searchQuery: string,
+    options: {
+      importance?: 'important' | 'not_important' | 'unclassified';
+    } = {}
+  ): Promise<number> {
+    const db = await this.getDb();
+    
+    let query = `
+      SELECT COUNT(*) as count FROM emails 
+      WHERE user_id = ? 
+      AND (
+        subject LIKE ? OR 
+        sender LIKE ? OR 
+        content LIKE ?
+      )
+    `;
+    
+    const searchPattern = `%${searchQuery}%`;
+    const params: any[] = [userId, searchPattern, searchPattern, searchPattern];
+
+    if (options.importance) {
+      query += ' AND importance = ?';
+      params.push(options.importance);
+    }
+
+    try {
+      const row = await db.get<{ count: number }>(query, params);
+      return row?.count || 0;
+    } catch (error) {
+      console.error('❌ Failed to get search emails count:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Update email importance
    */
   async updateImportance(

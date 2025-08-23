@@ -46,10 +46,10 @@ export default function AuthCallbackPage() {
             
             setStatus("success")
             
-            // Redirect to dashboard after a short delay
+            // Redirect to worth-it page after a short delay
             setTimeout(() => {
-              console.log("Redirecting to dashboard...")
-              router.push("/dashboard")
+              console.log("Redirecting to emails")
+              router.push("/worth-it")
             }, 2000)
             return
           } catch (parseError) {
@@ -98,9 +98,9 @@ export default function AuthCallbackPage() {
         
         setStatus("success")
         
-        // Redirect to dashboard after a short delay
+        // Redirect to worth-it page after a short delay
         setTimeout(() => {
-          router.push("/dashboard")
+          router.push("/worth-it")
         }, 2000)
 
       } catch (err) {
@@ -159,12 +159,12 @@ export default function AuthCallbackPage() {
           <CardDescription>You have been successfully logged in</CardDescription>
         </CardHeader>
         <CardContent className="text-center">
-          <p className="mb-4">Redirecting to dashboard...</p>
+          <p className="mb-4">Redirecting to Worth It...</p>
           <Button 
-            onClick={() => router.push("/dashboard")} 
+            onClick={() => router.push("/worth-it")} 
             className="w-full"
           >
-            Go to Dashboard
+            Go to Worth It
           </Button>
         </CardContent>
       </Card>

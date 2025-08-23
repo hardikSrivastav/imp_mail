@@ -52,20 +52,18 @@ export default function TopSimilarPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold">Insights</h1>
-                <p className="text-muted-foreground mt-2">Analyze email patterns and similarity to your expectations</p>
+                <h1 className="text-2xl lg:text-3xl font-bold">Insights</h1>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">Analyze email patterns and similarity to your expectations</p>
               </div>
-              <Button onClick={fetchTopSimilar} variant="outline" disabled={loading}>
+              <Button onClick={fetchTopSimilar} variant="outline" disabled={loading} className="w-full sm:w-auto">
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
@@ -76,13 +74,13 @@ export default function TopSimilarPage() {
             {/* Controls */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Similar Emails</CardTitle>
-                <CardDescription>Emails that most closely match your expectations</CardDescription>
+                <CardTitle className="text-lg lg:text-xl">Top Similar Emails</CardTitle>
+                <CardDescription className="text-sm">Emails that most closely match your expectations</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="percent">Show top</Label>
+                    <Label htmlFor="percent" className="text-sm">Show top</Label>
                     <Select value={percent.toString()} onValueChange={(value) => setPercent(Number(value))}>
                       <SelectTrigger className="w-20">
                         <SelectValue />
@@ -100,7 +98,7 @@ export default function TopSimilarPage() {
 
                   <div className="flex items-center gap-2">
                     <Switch id="include-html" checked={includeHtml} onCheckedChange={setIncludeHtml} />
-                    <Label htmlFor="include-html">Include email content</Label>
+                    <Label htmlFor="include-html" className="text-sm">Include email content</Label>
                   </div>
                 </div>
               </CardContent>
@@ -108,21 +106,21 @@ export default function TopSimilarPage() {
 
             {error && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                <p className="text-destructive">{error}</p>
+                <p className="text-destructive text-sm">{error}</p>
               </div>
             )}
 
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                Loading similar emails...
+                <span className="text-sm lg:text-base">Loading similar emails...</span>
               </div>
             )}
 
             {!loading && !error && results && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">
+                  <h2 className="text-lg lg:text-xl font-semibold">
                     Found {results.count} similar emails ({percent}% of total)
                   </h2>
                 </div>
@@ -133,22 +131,22 @@ export default function TopSimilarPage() {
                     return (
                     <Card key={result.email.id} className="overflow-hidden">
                       <CardContent className="p-0">
-                        <div className="p-4">
-                          <div className="flex items-start justify-between gap-4">
+                        <div className="p-3 lg:p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-medium truncate">{result.email.subject}</h3>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                                <h3 className="font-medium text-sm lg:text-base break-words">{result.email.subject}</h3>
                                 <SimilarityBadge similarity={result.similarity} />
                               </div>
 
-                              <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-muted-foreground mb-2 gap-1 sm:gap-0">
                                 <span className="truncate">{result.email.sender}</span>
                                 <span>{new Date(result.email.receivedAt).toLocaleString()}</span>
                               </div>
                             </div>
 
                             {html && (
-                              <Button variant="ghost" size="sm" onClick={() => toggleEmailExpansion(result.email.id)}>
+                              <Button variant="ghost" size="sm" onClick={() => toggleEmailExpansion(result.email.id)} className="w-full sm:w-auto">
                                 {expandedEmails.has(result.email.id) ? (
                                   <>
                                     <EyeOff className="h-4 w-4 mr-2" />
@@ -166,7 +164,7 @@ export default function TopSimilarPage() {
                         </div>
 
                         {html && expandedEmails.has(result.email.id) && (
-                          <div className="border-t bg-muted/20 p-4">
+                          <div className="border-t bg-muted/20 p-3 lg:p-4">
                             <EmailContent
                               html={html}
                               subject={result.email.subject}
@@ -182,8 +180,8 @@ export default function TopSimilarPage() {
 
                 {results.results.length === 0 && (
                   <div className="text-center py-12">
-                    <p className="text-muted-foreground">No similar emails found</p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-muted-foreground text-sm lg:text-base">No similar emails found</p>
+                    <p className="text-xs lg:text-sm text-muted-foreground mt-2">
                       Try adjusting the percentage or make sure your expectations are set up
                     </p>
                   </div>

@@ -63,18 +63,18 @@ export default function DigestHistoryPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
-        <div className="flex-1 p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
+        
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold">Digest History</h1>
-                <p className="text-muted-foreground mt-2">View your past email digests</p>
+                <h1 className="text-2xl lg:text-3xl font-bold">Digest History</h1>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">View your past email digests</p>
               </div>
               <Link href="/digest/settings">
-                <Button variant="outline">Settings</Button>
+                <Button variant="outline" className="w-full sm:w-auto">Settings</Button>
               </Link>
             </div>
 
@@ -97,11 +97,11 @@ export default function DigestHistoryPage() {
                 <CardContent className="pt-6">
                   <div className="text-center py-8">
                     <h3 className="text-lg font-medium mb-2">No digest history</h3>
-                    <p className="text-muted-foreground mb-4">
+                    <p className="text-muted-foreground mb-4 text-sm lg:text-base">
                       You haven't received any digests yet. Configure your digest settings to start receiving them.
                     </p>
                     <Link href="/digest/settings">
-                      <Button>Configure Digest</Button>
+                      <Button className="w-full sm:w-auto">Configure Digest</Button>
                     </Link>
                   </div>
                 </CardContent>
@@ -111,13 +111,13 @@ export default function DigestHistoryPage() {
                 {history.map((digest) => (
                   <Card key={digest.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-medium">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <h3 className="font-medium text-sm lg:text-base">
                               {formatDate(digest.sentAt)}
                             </h3>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Badge className={getFilterBadgeColor(digest.emailFilter)}>
                                 {digest.emailFilter === 'important' ? 'Important Only' : 'All Emails'}
                               </Badge>
@@ -126,16 +126,16 @@ export default function DigestHistoryPage() {
                               </Badge>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs lg:text-sm text-muted-foreground">
                             <span>{digest.threadsCount} thread{digest.threadsCount !== 1 ? 's' : ''}</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{digest.windowHours}h window</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{(digest.threshold * 100).toFixed(0)}% threshold</span>
                           </div>
                         </div>
                         <Link href={`/digest/history/${digest.id}`}>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto">
                             View Details
                           </Button>
                         </Link>

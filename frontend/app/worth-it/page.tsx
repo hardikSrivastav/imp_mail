@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
-// Icons removed
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
@@ -111,8 +110,6 @@ export default function WorthItPage() {
     }
   }
 
-
-
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     setCurrentPage(1)
@@ -165,8 +162,6 @@ export default function WorthItPage() {
     }
   }
 
-  // Score icons removed for cleaner UI
-
   const filteredEmails = emailsWithScores.filter(item => {
     if (scoreFilter === "all") return true
     if (scoreFilter === "high_confidence" && item.score) {
@@ -184,30 +179,27 @@ export default function WorthItPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r bg-card">
-          <Navigation />
-        </div>
+        {/* Navigation component - handles both mobile and desktop */}
+        <Navigation />
 
         {/* Main content */}
-        <div className="flex-1 p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 p-4 lg:p-8">
+          <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold">Emails</h1>
-                <p className="text-muted-foreground mt-2">
+                <h1 className="text-2xl lg:text-3xl font-bold">Emails</h1>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">
                   Manage your emails with AI-powered importance classification
                 </p>
               </div>
-              <Button onClick={fetchEmailsWithScores} disabled={loading} variant="outline">
+              <Button onClick={fetchEmailsWithScores} disabled={loading} variant="outline" className="w-full sm:w-auto">
                 {loading && <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />}
                 Refresh
               </Button>
             </div>
 
-
             {/* Search and filters */}
-            <div className="flex gap-4 items-end">
+            <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-end">
               <div className="flex-1">
                 <SearchBox
                   value={searchQuery}
@@ -216,7 +208,7 @@ export default function WorthItPage() {
                   placeholder="Search emails by subject, sender, or content..."
                 />
               </div>
-              <div className="w-48">
+              <div className="w-full lg:w-48">
                 <Select value={scoreFilter} onValueChange={setScoreFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by score" />
@@ -234,7 +226,7 @@ export default function WorthItPage() {
             {/* Error state */}
             {error && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                <p className="text-destructive">{error}</p>
+                <p className="text-destructive text-sm">{error}</p>
               </div>
             )}
 
@@ -242,7 +234,7 @@ export default function WorthItPage() {
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <div className="h-6 w-6 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Loading emails with AI scores...
+                <span className="text-sm lg:text-base">Loading emails with AI scores...</span>
               </div>
             )}
 
@@ -253,49 +245,46 @@ export default function WorthItPage() {
                   {filteredEmails.length > 0 ? (
                     filteredEmails.map((item) => (
                       <Card key={item.email.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-4">
+                        <CardContent className="p-3 lg:p-4">
+                          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-4">
                             <Link href={`/emails/${item.email.id}`} className="flex-1 min-w-0">
                               <div className="space-y-2">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <h3 className="font-medium truncate">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
+                                  <h3 className="font-medium text-sm lg:text-base break-words">
                                     {item.email.subject || "(no subject)"}
                                   </h3>
-                                  {/* Show stored importance from SQLite */}
-                                  {item.email.importance === 'important' && (
-                                    <Badge className="bg-green-600 hover:bg-green-700">
-                                      Important
-                                    </Badge>
-                                  )}
-                                  {item.email.importance === 'not_important' && (
-                                    <Badge variant="secondary">Not Important</Badge>
-                                  )}
-                                  {item.email.importance === 'unclassified' && (
-                                    <Badge variant="outline">Unclassified</Badge>
-                                  )}
-                                  {/* Show AI prediction as secondary info */}
-                                  {item.score && (
-                                    <Badge variant="outline" className="text-xs">
-                                      AI: {item.score.is_important ? "Important" : "Not Important"} ({(item.score.confidence * 100).toFixed(0)}%)
-                                    </Badge>
-                                  )}
+                                  <div className="flex flex-wrap gap-1 sm:gap-2">
+                                    {/* Show stored importance from SQLite */}
+                                    {item.email.importance === 'important' && (
+                                      <Badge className="bg-green-600 hover:bg-green-700 text-xs">
+                                        Important
+                                      </Badge>
+                                    )}
+                                    {item.email.importance === 'not_important' && (
+                                      <Badge variant="secondary" className="text-xs">Not Important</Badge>
+                                    )}
+                                    {/* Show AI prediction as secondary info */}
+                                    {item.score && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {item.score.is_important ? "Important" : "Not Important"} ({(item.score.confidence * 100).toFixed(0)}% confidence)
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-muted-foreground gap-1 sm:gap-0">
                                   <span className="truncate">{item.email.sender}</span>
                                   <span className="shrink-0">
                                     {item.email.receivedAt ? new Date(item.email.receivedAt).toLocaleString() : ""}
                                   </span>
                                 </div>
-
-                                {/* Reasoning text removed for cleaner UI */}
                               </div>
                             </Link>
 
                             {/* Importance management dropdown */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 self-start lg:self-auto">
                                   •••
                                 </Button>
                               </DropdownMenuTrigger>
@@ -317,9 +306,9 @@ export default function WorthItPage() {
                     ))
                   ) : (
                     <div className="text-center py-12">
-                      <p className="text-muted-foreground">No emails found</p>
+                      <p className="text-muted-foreground text-sm lg:text-base">No emails found</p>
                       {searchQuery && (
-                        <p className="text-sm text-muted-foreground mt-2">Try adjusting your search query or filters</p>
+                        <p className="text-xs lg:text-sm text-muted-foreground mt-2">Try adjusting your search query or filters</p>
                       )}
                     </div>
                   )}

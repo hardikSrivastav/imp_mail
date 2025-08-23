@@ -39,28 +39,52 @@ export class EmailDeliveryService {
     const smtpPort = parseInt(process.env.SMTP_PORT || '587');
 
     if (!emailUser || !emailPassword) {
-      console.warn('Email delivery service not configured. Set EMAIL_USER and EMAIL_PASSWORD environment variables.');
+      console.warn('📧 Email delivery service not configured.');
+      console.warn('   To enable digest email delivery, set these environment variables:');
+      console.warn('   - EMAIL_USER: Your email address');
+      console.warn('   - EMAIL_PASSWORD: Your email password (use App Password for Gmail)');
+      console.warn('   - EMAIL_SERVICE: "gmail" or "smtp" (optional, defaults to gmail)');
+      console.warn('   ');
+      console.warn('   For Gmail setup:');
+      console.warn('   1. Enable 2-factor authentication');
+      console.warn('   2. Generate App Password: Google Account → Security → 2-Step Verification → App passwords');
+      console.warn('   3. Use the generated password as EMAIL_PASSWORD');
+      console.warn('   ');
+      console.warn('   See env.template for complete configuration example.');
       return;
     }
 
-    if (emailService === 'gmail') {
-      this.transporter = nodemailer.createTransporter({
-        service: 'gmail',
-        auth: {
-          user: emailUser,
-          pass: emailPassword, // Use App Password for Gmail
-        },
-      });
-    } else if (smtpHost) {
-      this.transporter = nodemailer.createTransporter({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: emailUser,
-          pass: emailPassword,
-        },
-      });
+    try {
+      if (emailService === 'gmail') {
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: emailUser,
+            pass: emailPassword, // Use App Password for Gmail
+          },
+        });
+        console.log(`✅ Email delivery configured with Gmail (${emailUser})`);
+      } else if (emailService === 'smtp' && smtpHost) {
+        this.transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: emailUser,
+            pass: emailPassword,
+          },
+        });
+        console.log(`✅ Email delivery configured with SMTP (${smtpHost}:${smtpPort})`);
+      } else {
+        console.warn(`❌ Invalid email service configuration: ${emailService}`);
+        console.warn('   EMAIL_SERVICE must be "gmail" or "smtp"');
+        if (emailService === 'smtp' && !smtpHost) {
+          console.warn('   For SMTP, SMTP_HOST is required');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize email transporter:', error);
+      this.transporter = null;
     }
   }
 
@@ -92,27 +116,28 @@ export class EmailDeliveryService {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Email Digest</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f5f5f5; }
+          * { font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          body { font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f5f5f5; }
           .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }
-          .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-          .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; }
+          .header { background-color: #4a5568; color: white; padding: 30px 20px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; font-weight: 600; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
           .stats { background-color: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e9ecef; }
           .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
           .stat-item { text-align: center; }
-          .stat-value { font-size: 20px; font-weight: 600; color: #495057; }
-          .stat-label { font-size: 12px; color: #6c757d; text-transform: uppercase; margin-top: 4px; }
+          .stat-value { font-size: 20px; font-weight: 600; color: #495057; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .stat-label { font-size: 12px; color: #6c757d; text-transform: uppercase; margin-top: 4px; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
           .content { padding: 20px; }
           .email-item { border: 1px solid #e9ecef; border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
           .email-header { background-color: #f8f9fa; padding: 12px 16px; border-bottom: 1px solid #e9ecef; }
-          .email-subject { font-weight: 600; font-size: 16px; margin: 0; color: #495057; }
-          .email-meta { font-size: 12px; color: #6c757d; margin-top: 4px; }
+          .email-subject { font-weight: 600; font-size: 16px; margin: 0; color: #495057; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .email-meta { font-size: 12px; color: #6c757d; margin-top: 4px; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
           .email-body { padding: 16px; }
-          .email-summary { font-size: 14px; line-height: 1.5; color: #495057; }
-          .similarity-badge { display: inline-block; background-color: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; margin-left: 8px; }
-          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef; }
-          .footer a { color: #667eea; text-decoration: none; }
-          .no-emails { text-align: center; padding: 40px 20px; color: #6c757d; }
+          .email-summary { font-size: 14px; line-height: 1.5; color: #495057; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .similarity-badge { display: inline-block; background-color: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; margin-left: 8px; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .footer a { color: #667eea; text-decoration: none; font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
+          .no-emails { text-align: center; padding: 40px 20px; color:rgb(28, 28, 29); font-family: Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif !important; }
         </style>
       </head>
       <body>
@@ -135,10 +160,6 @@ export class EmailDeliveryService {
               <div class="stat-item">
                 <div class="stat-value">${emailFilterText}</div>
                 <div class="stat-label">Filter</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value">${options.windowHours}h</div>
-                <div class="stat-label">Window</div>
               </div>
             </div>
           </div>
@@ -174,7 +195,7 @@ export class EmailDeliveryService {
           </div>
 
           <div class="footer">
-            <p>This digest was automatically generated by your Email Filter system.</p>
+            <p>I'm so goated dawg istg. hardiksrivastava.com</p>
             <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/digest/settings">Manage digest settings</a> | <a href="${process.env.FRONTEND_URL || 'http://localhost:3001'}/digest">View digest history</a></p>
           </div>
         </div>
@@ -213,7 +234,9 @@ View digest history: ${process.env.FRONTEND_URL || 'http://localhost:3001'}/dige
     options: DigestDeliveryOptions
   ): Promise<boolean> {
     if (!this.transporter) {
-      console.warn('Email transporter not configured. Skipping email delivery.');
+      console.warn('📧 Email transporter not configured. Skipping email delivery.');
+      console.warn('   Configure EMAIL_USER and EMAIL_PASSWORD environment variables to enable email delivery.');
+      console.warn('   See the startup logs above for detailed configuration instructions.');
       return false;
     }
 
