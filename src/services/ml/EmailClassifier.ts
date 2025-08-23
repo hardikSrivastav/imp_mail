@@ -4,6 +4,7 @@ import { UserExpectationsManager } from './UserExpectationsManager';
 import { getDatabase } from '../../config/database';
 import { VectorEmbeddingService } from '../embedding/VectorEmbeddingService';
 import { QdrantRepository } from '../../repositories/QdrantRepository';
+import { PreferencePrototypeService } from './PreferencePrototypeService';
 
 export interface ClassificationResult {
   emailId: string;
@@ -24,6 +25,7 @@ export class EmailClassifier {
   private embeddingService: VectorEmbeddingService;
   private qdrantRepository: QdrantRepository;
   private prototypeCache: Map<string, number[]> = new Map();
+  private preferenceService: PreferencePrototypeService;
 
   constructor() {
     this.openaiService = new OpenAIFilterService();
@@ -33,6 +35,7 @@ export class EmailClassifier {
     const qdrantApiKey = process.env.QDRANT_API_KEY;
     this.embeddingService = new VectorEmbeddingService(openaiApiKey, qdrantUrl, qdrantApiKey);
     this.qdrantRepository = new QdrantRepository(qdrantUrl, qdrantApiKey);
+    this.preferenceService = new PreferencePrototypeService();
   }
 
   /**
@@ -53,14 +56,37 @@ export class EmailClassifier {
         expectations = activeExpectations;
       }
 
-      // Prototype-only path for single email
-      const protoVector = await this.getExpectationPrototype(expectations);
-      // Attempt to fetch vector for the single email via Qdrant scroll helper
+      // Preference-prototype path: dual centroid comparison
       const vectors = await this.qdrantRepository.getVectorsByEmailIds([email.id]);
       const embedding = vectors[0]?.embedding;
+      if (embedding) {
+        try {
+          const protos = await this.preferenceService.computePrototypes(userId);
+          const simLiked = this.cosineSimilarity(protos.likedCentroid, embedding);
+          const simDisliked = this.cosineSimilarity(protos.dislikedCentroid, embedding);
+          const margin = simLiked - simDisliked;
+          const marginThreshold = parseFloat(process.env.PROTOTYPE_MARGIN || '0.05');
+          const isDebug = process.env.INDEXING_DEBUG === 'true';
+          if (isDebug) console.log(`[CLASSIFY DEBUG] email ${email.id} simLiked=${simLiked.toFixed(3)} simDisliked=${simDisliked.toFixed(3)} margin=${margin.toFixed(3)}`);
+          if (margin >= marginThreshold) {
+            const conf = Math.min(1, Math.max(0, (margin - marginThreshold) / (1 - marginThreshold)));
+            const res = { importance: 'important' as const, confidence: Math.round(conf * 100) / 100, reasoning: `Liked vs. disliked margin ${margin.toFixed(3)} ≥ ${marginThreshold}` };
+            await this.storeClassificationResult(email.id, res, 'prototype');
+            return { emailId: email.id, importance: res.importance, confidence: res.confidence, reasoning: res.reasoning, classifiedAt: new Date(), method: 'prototype' };
+          }
+          if (margin <= -marginThreshold) {
+            const conf = Math.min(1, Math.max(0, (-margin - marginThreshold) / (1 - marginThreshold)));
+            const res = { importance: 'not_important' as const, confidence: Math.round(conf * 100) / 100, reasoning: `Disliked vs. liked margin ${(-margin).toFixed(3)} ≥ ${marginThreshold}` };
+            await this.storeClassificationResult(email.id, res, 'prototype');
+            return { emailId: email.id, importance: res.importance, confidence: res.confidence, reasoning: res.reasoning, classifiedAt: new Date(), method: 'prototype' };
+          }
+        } catch { /* fall through to expectations prototype path */ }
+      }
+
+      // Fallback expectations-prototype path for borderline/missing preferences
+      const protoVector = await this.getExpectationPrototype(expectations);
       const HIGH_THRESHOLD = parseFloat(process.env.PROTOTYPE_HIGH_THRESHOLD || '0.80');
       const LOW_THRESHOLD = parseFloat(process.env.PROTOTYPE_LOW_THRESHOLD || '0.60');
-
       if (embedding) {
         const sim = this.cosineSimilarity(protoVector, embedding);
         const isDebug = process.env.INDEXING_DEBUG === 'true';
@@ -78,22 +104,25 @@ export class EmailClassifier {
           return { emailId: email.id, importance: res.importance, confidence: res.confidence, reasoning: res.reasoning, classifiedAt: new Date(), method: 'prototype' };
         }
       }
-      // Borderline or missing vector: try OpenAI, fallback if unavailable
-      const isOpenAIAvailable = await this.openaiService.isAvailable();
-      if (isOpenAIAvailable) {
-        try {
-          const result = await this.openaiService.classifyEmail(email, expectations);
-          await this.storeClassificationResult(email.id, result, 'openai');
-          return {
-            emailId: email.id,
-            importance: result.importance,
-            confidence: result.confidence,
-            reasoning: result.reasoning,
-            classifiedAt: new Date(),
-            method: 'openai'
-          };
-        } catch (openaiError) {
-          console.error('OpenAI single-email classification failed, using fallback:', openaiError);
+      // Borderline or missing vector: optionally skip LLM fallback
+      const disableLLM = process.env.DISABLE_LLM_CLASSIFICATION === 'true';
+      if (!disableLLM) {
+        const isOpenAIAvailable = await this.openaiService.isAvailable();
+        if (isOpenAIAvailable) {
+          try {
+            const result = await this.openaiService.classifyEmail(email, expectations);
+            await this.storeClassificationResult(email.id, result, 'openai');
+            return {
+              emailId: email.id,
+              importance: result.importance,
+              confidence: result.confidence,
+              reasoning: result.reasoning,
+              classifiedAt: new Date(),
+              method: 'openai'
+            };
+          } catch (openaiError) {
+            console.error('OpenAI single-email classification failed, using fallback:', openaiError);
+          }
         }
       }
       return this.fallbackClassification(email, expectations);
@@ -124,8 +153,19 @@ export class EmailClassifier {
         }
         expectations = activeExpectations;
       }
-      // Cosine-similarity prototype classification first
-      const protoVector = await this.getExpectationPrototype(expectations);
+      // Try preference-based dual-centroid prototypes once
+      let preferDual = false;
+      let likedProto: number[] | null = null;
+      let dislikedProto: number[] | null = null;
+      try {
+        const p = await this.preferenceService.computePrototypes(userId);
+        likedProto = p.likedCentroid;
+        dislikedProto = p.dislikedCentroid;
+        preferDual = true;
+      } catch {
+        // Fall back to expectations prototype
+      }
+      const protoVector = preferDual ? null : await this.getExpectationPrototype(expectations);
       const emailIds = emails.map(e => e.id);
       const vectors = await this.qdrantRepository.getVectorsByEmailIds(emailIds);
       const idToVector = new Map(vectors.map(v => [v.emailId, v.embedding]));
@@ -143,7 +183,35 @@ export class EmailClassifier {
           borderlineEmails.push(email);
           continue;
         }
-        const sim = this.cosineSimilarity(protoVector, embedding);
+        if (preferDual && likedProto && dislikedProto) {
+          const simLiked = this.cosineSimilarity(likedProto, embedding);
+          const simDisliked = this.cosineSimilarity(dislikedProto, embedding);
+          const margin = simLiked - simDisliked;
+          const marginThreshold = parseFloat(process.env.PROTOTYPE_MARGIN || '0.05');
+          if (margin >= marginThreshold) {
+            const res = {
+              importance: 'important' as const,
+              confidence: Math.round(Math.min(1, Math.max(0, (margin - marginThreshold) / (1 - marginThreshold))) * 100) / 100,
+              reasoning: `Liked vs. disliked margin ${margin.toFixed(3)} ≥ ${marginThreshold}`
+            };
+            await this.storeClassificationResult(email.id, res, 'prototype');
+            resultsSoFar.push({ emailId: email.id, importance: res.importance, confidence: res.confidence, reasoning: res.reasoning, classifiedAt: new Date(), method: 'prototype' });
+            continue;
+          } else if (margin <= -marginThreshold) {
+            const res = {
+              importance: 'not_important' as const,
+              confidence: Math.round(Math.min(1, Math.max(0, (-margin - marginThreshold) / (1 - marginThreshold))) * 100) / 100,
+              reasoning: `Disliked vs. liked margin ${(-margin).toFixed(3)} ≥ ${marginThreshold}`
+            };
+            await this.storeClassificationResult(email.id, res, 'prototype');
+            resultsSoFar.push({ emailId: email.id, importance: res.importance, confidence: res.confidence, reasoning: res.reasoning, classifiedAt: new Date(), method: 'prototype' });
+            continue;
+          } else {
+            borderlineEmails.push(email);
+            continue;
+          }
+        }
+        const sim = this.cosineSimilarity(protoVector as number[], embedding);
         if (sim >= HIGH_THRESHOLD) {
           const res = {
             importance: 'important' as const,
@@ -190,28 +258,31 @@ export class EmailClassifier {
         return resultsSoFar;
       }
 
-      // Borderline: try OpenAI on this subset; fallback if unavailable/errors
+      // Borderline: optionally skip LLM fallback on this subset
       if (process.env.INDEXING_DEBUG === 'true') {
         console.log(`[CLASSIFY DEBUG] borderline emails count=${borderlineEmails.length}`);
       }
-      const isOpenAIAvailable = await this.openaiService.isAvailable();
-      if (isOpenAIAvailable) {
-        try {
-          const llmResults = await this.openaiService.classifyEmailsBatch(borderlineEmails, expectations);
-          for (const result of llmResults) {
-            await this.storeClassificationResult(result.emailId, result, 'openai');
-            resultsSoFar.push({
-              emailId: result.emailId,
-              importance: result.importance,
-              confidence: result.confidence,
-              reasoning: result.reasoning,
-              classifiedAt: new Date(),
-              method: 'openai'
-            });
+      const disableLLM = process.env.DISABLE_LLM_CLASSIFICATION === 'true';
+      if (!disableLLM) {
+        const isOpenAIAvailable = await this.openaiService.isAvailable();
+        if (isOpenAIAvailable) {
+          try {
+            const llmResults = await this.openaiService.classifyEmailsBatch(borderlineEmails, expectations);
+            for (const result of llmResults) {
+              await this.storeClassificationResult(result.emailId, result, 'openai');
+              resultsSoFar.push({
+                emailId: result.emailId,
+                importance: result.importance,
+                confidence: result.confidence,
+                reasoning: result.reasoning,
+                classifiedAt: new Date(),
+                method: 'openai'
+              });
+            }
+            return resultsSoFar;
+          } catch (openaiError) {
+            console.error('OpenAI borderline classification failed, using fallback:', openaiError);
           }
-          return resultsSoFar;
-        } catch (openaiError) {
-          console.error('OpenAI borderline classification failed, using fallback:', openaiError);
         }
       }
       resultsSoFar.push(...this.fallbackBatchClassification(borderlineEmails, expectations));

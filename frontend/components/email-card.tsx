@@ -76,33 +76,11 @@ export function EmailCard({ email, onImportanceChange }: EmailCardProps) {
                 <span className="shrink-0">{formatDate(email.receivedAt)}</span>
               </div>
 
-              <div className="flex items-center gap-2">{getImportanceBadge(email.importance)}</div>
+              {/* Importance removed - now shown in Worth It page */}
             </div>
           </Link>
 
-          {onImportanceChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onImportanceChange(email.id, "important")}>
-                  <Star className="h-4 w-4 mr-2" />
-                  Mark Important
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onImportanceChange(email.id, "not_important")}>
-                  <StarOff className="h-4 w-4 mr-2" />
-                  Mark Not Important
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onImportanceChange(email.id, "unclassified")}>
-                  <Minus className="h-4 w-4 mr-2" />
-                  Mark Unclassified
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* Importance management moved to Worth It page */}
         </div>
       </CardContent>
     </Card>

@@ -35,10 +35,17 @@ export default function ScoresPage() {
       const response = await apiClient.getPrototypeScores()
       // Handle different response formats
       const scoresData = response.data.scores || response.data.emails || response.data || []
-      setScores(scoresData)
-      setFilteredScores(scoresData)
+      
+      // Ensure scoresData is an array
+      const safeScoresData = Array.isArray(scoresData) ? scoresData : []
+      
+      setScores(safeScoresData)
+      setFilteredScores(safeScoresData)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch similarity scores")
+      // Set empty arrays on error to prevent map errors
+      setScores([])
+      setFilteredScores([])
     } finally {
       setLoading(false)
     }
@@ -49,6 +56,11 @@ export default function ScoresPage() {
   }, [])
 
   useEffect(() => {
+    if (!Array.isArray(scores)) {
+      setFilteredScores([])
+      return
+    }
+    
     if (!searchQuery.trim()) {
       setFilteredScores(scores)
     } else {
@@ -62,7 +74,7 @@ export default function ScoresPage() {
   }, [searchQuery, scores])
 
   const getScoreStats = () => {
-    if (scores.length === 0) return { avg: 0, high: 0, low: 0 }
+    if (!Array.isArray(scores) || scores.length === 0) return { avg: 0, high: 0, low: 0 }
 
     const similarities = scores.map((s) => s.similarity)
     const avg = similarities.reduce((a, b) => a + b, 0) / similarities.length

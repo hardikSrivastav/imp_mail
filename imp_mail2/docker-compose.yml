@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  email-classifier:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLASSIFIER_DATA_DIR=/app/data  # Directory for classifier persistence
+      - SQLITE_DB_PATH=/app/shared_data/emails.db  # SQLite database path
+    volumes:
+      - ./data:/app/data  # Persist classifier models and training data
+      - ./shared_data:/app/shared_data  # Shared data with main application
+      - ./logs:/app/logs  # Persist logs
+    restart: unless-stopped
+

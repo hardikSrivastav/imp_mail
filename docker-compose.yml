@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: development
     ports:
       - "3000:3000"
     environment:
@@ -14,11 +16,14 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./src:/app/src  # Mount source code for hot reloading
+      - ./package.json:/app/package.json  # Mount package.json for dependency changes
     depends_on:
       - redis
       - qdrant
     networks:
       - email-filter-network
+    command: npm run dev  # Use development command instead of production start
 
   redis:
     image: redis:7-alpine
@@ -39,9 +44,68 @@ services:
     networks:
       - email-filter-network
 
+  # Python Email Classifier Service
+  email-classifier:
+    build:
+      context: ./imp_mail2
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+    volumes:
+      - ./imp_mail2/models:/app/models
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+      - ./imp_mail2:/app  # Mount entire directory for development
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: uvicorn email_classifier_service:app --host 0.0.0.0 --port 8000 --reload
+
+  # Incremental Classifier Service
+  incremental-classifier:
+    build:
+      context: ./imp_mail2
+      target: development
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+      - email-classifier
+    volumes:
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+      - ./imp_mail2:/app  # Mount entire directory for development
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: python incremental_classifier.py
+
+
+
 volumes:
   redis_data:
   qdrant_data:
+  classifier_logs:
 
 networks:
   email-filter-network:

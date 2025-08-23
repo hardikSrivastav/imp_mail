@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { UserExpectationsManager } from '../services/ml/UserExpectationsManager';
 import { FilteringPipeline } from '../services/ml/FilteringPipeline';
 import { OpenAIFilterService } from '../services/ml/OpenAIFilterService';
+import { EmailClassifier } from '../services/ml/EmailClassifier';
 import { EmailRepository } from '../repositories/EmailRepository';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { UserExpectations } from '../types/models';
@@ -47,12 +48,16 @@ export interface BatchFilterRequest {
  * FilterController handles HTTP requests for OpenAI filtering service operations
  */
 export class FilterController {
+  private digestService: DigestService;
+
   constructor(
     private expectationsManager: UserExpectationsManager,
     private filteringPipeline: FilteringPipeline,
     private openaiService: OpenAIFilterService,
     private emailRepository: EmailRepository
-  ) {}
+  ) {
+    this.digestService = new DigestService();
+  }
 
   /**
    * POST /api/filter/expectations - Create user expectations for filtering
@@ -421,16 +426,6 @@ export class FilterController {
         return;
       }
 
-      // Check OpenAI availability
-      const isOpenAIAvailable = await this.openaiService.isAvailable();
-      if (!isOpenAIAvailable) {
-        res.status(503).json({
-          error: 'OpenAI service unavailable',
-          message: 'OpenAI filtering service is currently unavailable'
-        });
-        return;
-      }
-
       let stats;
       if (emailIds && emailIds.length > 0) {
         // Filter specific emails
@@ -561,17 +556,17 @@ export class FilterController {
   async getDigestSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
+      const settings = await this.digestService.getDigestSettings(userId);
+      
+      // Get last digest timestamp
       const db = await getDatabase();
-      const row = await db.get<any>(
-        'SELECT digest_enabled, digest_times, timezone, last_digest_at FROM users WHERE id = ?',
-        [userId],
+      const row = await db.get<{ last_digest_at?: string }>(
+        'SELECT last_digest_at FROM users WHERE id = ?',
+        [userId]
       );
-      let times: string[] = ["11:00","21:00"];
-      try { if (row?.digest_times) times = JSON.parse(row.digest_times); } catch {}
+      
       res.json({
-        enabled: row?.digest_enabled ? Boolean(row.digest_enabled) : true,
-        times,
-        timezone: row?.timezone || 'Asia/Kolkata',
+        ...settings,
         lastDigestAt: row?.last_digest_at || null,
       });
     } catch (error) {
@@ -582,45 +577,108 @@ export class FilterController {
 
   /**
    * PUT /api/digest/settings
-   * Body: { enabled?: boolean, times?: string[], timezone?: string }
+   * Body: { enabled?: boolean, times?: string[], timezone?: string, emailFilter?: string, emailDelivery?: string }
    */
   async updateDigestSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const { enabled, times, timezone } = req.body || {};
+      const { enabled, times, timezone, emailFilter, emailDelivery } = req.body || {};
 
-      // Validate times if provided (HH:MM 24h format)
-      if (times !== undefined) {
-        if (!Array.isArray(times) || times.length === 0) {
-          res.status(400).json({ error: 'Invalid times', message: 'times must be a non-empty array' });
-          return;
-        }
-        const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
-        for (const t of times) {
-          if (typeof t !== 'string' || !timeRe.test(t)) {
-            res.status(400).json({ error: 'Invalid time format', message: `Invalid time: ${t}. Use HH:MM (24h)` });
-            return;
-          }
-        }
-      }
+      const updateData: any = {};
+      if (enabled !== undefined) updateData.enabled = enabled;
+      if (times !== undefined) updateData.times = times;
+      if (timezone !== undefined) updateData.timezone = timezone;
+      if (emailFilter !== undefined) updateData.emailFilter = emailFilter;
+      if (emailDelivery !== undefined) updateData.emailDelivery = emailDelivery;
 
-      const db = await getDatabase();
-      const fields: string[] = [];
-      const values: any[] = [];
-      if (enabled !== undefined) { fields.push('digest_enabled = ?'); values.push(enabled ? 1 : 0); }
-      if (times !== undefined) { fields.push('digest_times = ?'); values.push(JSON.stringify(times)); }
-      if (timezone !== undefined) { fields.push('timezone = ?'); values.push(timezone); }
-      if (fields.length === 0) {
-        res.status(400).json({ error: 'No changes', message: 'Provide enabled, times or timezone' });
+      if (Object.keys(updateData).length === 0) {
+        res.status(400).json({ error: 'No changes', message: 'Provide at least one setting to update' });
         return;
       }
-      values.push(userId);
-      await db.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
 
+      await this.digestService.updateDigestSettings(userId, updateData);
       res.json({ message: 'Digest settings updated' });
     } catch (error) {
       console.error('❌ Failed to update digest settings:', error);
-      res.status(500).json({ error: 'Internal server error', message: 'Failed to update digest settings' });
+      if (error instanceof Error) {
+        res.status(400).json({ error: 'Validation error', message: error.message });
+      } else {
+        res.status(500).json({ error: 'Internal server error', message: 'Failed to update digest settings' });
+      }
+    }
+  }
+
+  /**
+   * GET /api/digest/history
+   * Returns digest history for the current user
+   */
+  async getDigestHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const history = await this.digestService.getDigestHistory(userId, limit);
+      res.json({ history });
+    } catch (error) {
+      console.error('❌ Failed to get digest history:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to get digest history' });
+    }
+  }
+
+  /**
+   * GET /api/digest/:id
+   * Returns detailed digest by ID
+   */
+  async getDigestById(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const digestId = req.params.id;
+
+      if (!digestId) {
+        res.status(400).json({ error: 'Missing digest ID', message: 'Digest ID is required' });
+        return;
+      }
+
+      const digest = await this.digestService.getDigestById(userId, digestId);
+      
+      if (!digest) {
+        res.status(404).json({ error: 'Digest not found', message: 'Digest with the specified ID does not exist' });
+        return;
+      }
+
+      res.json(digest);
+    } catch (error) {
+      console.error('❌ Failed to get digest by ID:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to get digest details' });
+    }
+  }
+
+  /**
+   * POST /api/digest/test-email
+   * Test email delivery configuration
+   */
+  async testDigestEmail(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const userEmail = req.user!.email;
+
+      // Generate a sample digest
+      const sampleDigest = await this.digestService.computeDigestForUser(userId, {
+        generateSummaries: true,
+        windowHours: 24,
+      });
+
+      // Send test email
+      const success = await this.digestService.sendDigestEmail(userId, userEmail, sampleDigest);
+
+      if (success) {
+        res.json({ message: 'Test digest email sent successfully' });
+      } else {
+        res.status(500).json({ error: 'Email delivery failed', message: 'Failed to send test digest email' });
+      }
+    } catch (error) {
+      console.error('❌ Failed to send test digest email:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to send test digest email' });
     }
   }
 
@@ -669,18 +727,9 @@ export class FilterController {
         return;
       }
 
-      // Check OpenAI availability
-      const isOpenAIAvailable = await this.openaiService.isAvailable();
-      if (!isOpenAIAvailable) {
-        res.status(503).json({
-          error: 'OpenAI service unavailable',
-          message: 'OpenAI filtering service is currently unavailable'
-        });
-        return;
-      }
-
-      // Classify email
-      const result = await this.openaiService.classifyEmail(email, expectations);
+      // Classify email using prototype-first classifier (LLM as fallback when available)
+      const classifier = new EmailClassifier();
+      const result = await classifier.classifyEmail(email, userId, expectations);
 
       // Update email importance
       await this.emailRepository.updateImportance(
@@ -1210,41 +1259,30 @@ export class FilterController {
       throw new Error('No active expectations found');
     }
 
-    // Process emails in batches
+    // Use prototype-first classifier with batch processing
+    const classifier = new EmailClassifier();
     for (let i = 0; i < emailIds.length; i += options.batchSize) {
       const batchIds = emailIds.slice(i, i + options.batchSize);
       const emails = await this.emailRepository.getByIds(batchIds);
-
-      // Filter emails belonging to the user
       const userEmails = emails.filter(email => email.userId === userId);
 
-      for (const email of userEmails) {
-        try {
-          const result = await this.openaiService.classifyEmail(email, expectations);
-          
-          // Update email importance
+      try {
+        const results = await classifier.classifyEmailsBatch(userEmails, userId, expectations);
+        for (const r of results) {
           await this.emailRepository.updateImportance(
-            email.id,
-            result.importance,
-            result.confidence,
+            r.emailId,
+            r.importance,
+            r.confidence,
             false
           );
 
           totalProcessed++;
-          totalConfidence += result.confidence;
-
-          if (result.importance === 'important') {
-            importantCount++;
-          } else {
-            notImportantCount++;
-          }
-
-          if (result.confidence < options.confidenceThreshold) {
-            flaggedForReview++;
-          }
-        } catch (error) {
-          console.error(`Failed to classify email ${email.id}:`, error);
+          totalConfidence += r.confidence;
+          if (r.importance === 'important') importantCount++; else notImportantCount++;
+          if (r.confidence < options.confidenceThreshold) flaggedForReview++;
         }
+      } catch (error) {
+        console.error('Batch classification failed:', error);
       }
     }
 

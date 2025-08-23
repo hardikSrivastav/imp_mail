@@ -4,6 +4,8 @@ import { FilterController } from '../controllers/FilterController';
 import { IndexingController } from '../controllers/IndexingController';
 import { AuthController } from '../controllers/AuthController';
 import { EmailRepository } from '../repositories/EmailRepository';
+import { PreferencePrototypeService } from '../services/ml/PreferencePrototypeService';
+import { PreferenceController } from '../controllers/PreferenceController';
 import { EmailSearchService } from '../services/search/EmailSearchService';
 import { QdrantRepository } from '../repositories/QdrantRepository';
 import { CacheRepository } from '../repositories/CacheRepository';
@@ -121,6 +123,8 @@ export async function createRoutes(): Promise<Router> {
     openaiService,
     emailRepository
   );
+  const preferenceService = new PreferencePrototypeService();
+  const preferenceController = new PreferenceController(preferenceService, emailRepository);
   const tokenStore = new TokenStore(db, encryptionKey);
   const indexingController = new IndexingController(
     db,
@@ -164,10 +168,19 @@ export async function createRoutes(): Promise<Router> {
   router.get('/filter/status', filterController.getFilteringStatus.bind(filterController));
   router.post('/filter/classify/:id', filterController.classifySingleEmail.bind(filterController));
   router.post('/filter/reset', filterController.resetClassifications.bind(filterController));
+  
+  // Preference prototype routes
+  router.get('/preferences', preferenceController.getPreferences.bind(preferenceController));
+  router.put('/preferences', preferenceController.savePreferences.bind(preferenceController));
+  router.post('/preferences/train', preferenceController.train.bind(preferenceController));
+  router.get('/preferences/score/:id', preferenceController.score.bind(preferenceController));
   // Digest routes
   router.post('/digest/send-now', filterController.sendDigestNow.bind(filterController));
   router.get('/digest/settings', filterController.getDigestSettings.bind(filterController));
   router.put('/digest/settings', filterController.updateDigestSettings.bind(filterController));
+  router.get('/digest/history', filterController.getDigestHistory.bind(filterController));
+  router.get('/digest/:id', filterController.getDigestById.bind(filterController));
+  router.post('/digest/test-email', filterController.testDigestEmail.bind(filterController));
   // router.post('/filter/rules/timeslots', filterController.classifyByTimeslots.bind(filterController));
   // router.post('/filter/rules/oweek', filterController.classifyByOWeek.bind(filterController));
   router.get('/filter/scores', filterController.getPrototypeScores.bind(filterController));

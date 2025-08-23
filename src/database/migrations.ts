@@ -97,6 +97,62 @@ export const migrations: Migration[] = [
   },
 
   {
+    version: 10,
+    name: 'enhance_digest_features',
+    up: async (db: Database) => {
+      // Add new digest settings columns
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN digest_email_filter TEXT DEFAULT 'all' CHECK (digest_email_filter IN ('all', 'important'));
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN digest_email_delivery TEXT DEFAULT 'email' CHECK (digest_email_delivery IN ('email', 'none'));
+      `).catch(() => {});
+
+      // Enhance digest_log table with more details
+      await db.exec(`
+        ALTER TABLE digest_log ADD COLUMN email_filter TEXT DEFAULT 'all';
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE digest_log ADD COLUMN delivery_method TEXT DEFAULT 'email';
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE digest_log ADD COLUMN digest_content TEXT;
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE digest_log ADD COLUMN window_hours INTEGER DEFAULT 12;
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE digest_log ADD COLUMN threshold REAL DEFAULT 0.6;
+      `).catch(() => {});
+
+      // Create digest_email_summaries table for LLM-generated summaries
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS digest_email_summaries (
+          id TEXT PRIMARY KEY,
+          email_id TEXT NOT NULL,
+          digest_log_id TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          generated_at TEXT NOT NULL,
+          model_used TEXT DEFAULT 'gpt-3.5-turbo',
+          FOREIGN KEY (email_id) REFERENCES emails(id) ON DELETE CASCADE,
+          FOREIGN KEY (digest_log_id) REFERENCES digest_log(id) ON DELETE CASCADE
+        );
+      `);
+
+      await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_digest_summaries_email_id ON digest_email_summaries(email_id);
+      `);
+      await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_digest_summaries_digest_log_id ON digest_email_summaries(digest_log_id);
+      `);
+    },
+    down: async (db: Database) => {
+      await db.exec('DROP TABLE IF EXISTS digest_email_summaries;');
+      // Note: SQLite cannot drop columns easily; keep added columns on users.
+    }
+  },
+
+  {
     version: 2,
     name: 'create_emails_table',
     up: async (db: Database) => {

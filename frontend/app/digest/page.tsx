@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiClient } from "@/lib/api-client"
+import Link from "next/link"
 
 export default function DigestPage() {
   const [windowHours, setWindowHours] = useState<number>(12)
@@ -15,6 +16,7 @@ export default function DigestPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<Array<{ emailId: string; subject: string; sender: string; receivedAt: string; similarity: number }>>([])
+  const [totalResults, setTotalResults] = useState<number>(0)
 
   const runPreview = async () => {
     try {
@@ -22,7 +24,13 @@ export default function DigestPage() {
       setError(null)
       const res = await apiClient.computeDigest({ windowHours, threshold, dryRun: true })
       const data = res.data as any
-      setResults(data.results || [])
+      const allResults = data.results || []
+      
+      // Filter results to only include emails with similarity >= threshold
+      const filteredResults = allResults.filter((r: any) => r.similarity >= threshold)
+      
+      setTotalResults(allResults.length)
+      setResults(filteredResults)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to compute digest")
     } finally {
@@ -42,6 +50,14 @@ export default function DigestPage() {
               <div>
                 <h1 className="text-3xl font-bold">Digest</h1>
                 <p className="text-muted-foreground mt-2">Preview relevant threads for a recent window</p>
+              </div>
+              <div className="flex gap-2">
+                <Link href="/digest/history">
+                  <Button variant="outline">View History</Button>
+                </Link>
+                <Link href="/digest/settings">
+                  <Button variant="outline">Settings</Button>
+                </Link>
               </div>
             </div>
 
@@ -70,7 +86,9 @@ export default function DigestPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Results</CardTitle>
-                <CardDescription>{results.length} threads</CardDescription>
+                <CardDescription>
+                  {results.length} threads (filtered from {totalResults} total)
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {error && <div className="text-sm text-destructive">{error}</div>}

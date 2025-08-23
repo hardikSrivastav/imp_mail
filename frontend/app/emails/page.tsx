@@ -19,7 +19,7 @@ export default function EmailsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [totalEmails, setTotalEmails] = useState(0)
-  const [importanceFilter, setImportanceFilter] = useState<string>("all")
+  // Importance filtering removed - now in Worth It page
 
   const fetchEmails = async () => {
     try {
@@ -35,14 +35,8 @@ export default function EmailsPage() {
         : await apiClient.getEmails(params)
       const emailsData = hasQuery ? (response.data.results?.map((r: any) => r.email) || []) : (response.data.emails || [])
 
-      // Filter by importance if needed
-      let filteredEmails = emailsData
-      if (importanceFilter !== "all") {
-        filteredEmails = emailsData.filter((email: Email) => email.importance === importanceFilter)
-      }
-
-      setEmails(filteredEmails)
-      setTotalEmails(hasQuery ? (response.data.results?.length || filteredEmails.length) : (response.data.pagination?.total ?? filteredEmails.length))
+      setEmails(emailsData)
+      setTotalEmails(hasQuery ? (response.data.results?.length || emailsData.length) : (response.data.pagination?.total ?? emailsData.length))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch emails")
     } finally {
@@ -52,22 +46,14 @@ export default function EmailsPage() {
 
   useEffect(() => {
     fetchEmails()
-  }, [currentPage, itemsPerPage, searchQuery, importanceFilter])
+  }, [currentPage, itemsPerPage, searchQuery])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     setCurrentPage(1)
   }
 
-  const handleImportanceChange = async (id: string, importance: "important" | "not_important" | "unclassified") => {
-    try {
-      await apiClient.updateEmailImportance(id, importance)
-      // Update local state
-      setEmails(emails.map((email) => (email.id === id ? { ...email, importance } : email)))
-    } catch (err) {
-      console.error("Failed to update email importance:", err)
-    }
-  }
+  // Importance management moved to Worth It page
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -100,7 +86,7 @@ export default function EmailsPage() {
               </Button>
             </div>
 
-            {/* Search and filters */}
+            {/* Search */}
             <div className="flex gap-4 items-end">
               <div className="flex-1">
                 <SearchBox
@@ -109,19 +95,6 @@ export default function EmailsPage() {
                   onSearch={handleSearch}
                   placeholder="Search emails by subject, sender, or content..."
                 />
-              </div>
-              <div className="w-48">
-                <Select value={importanceFilter} onValueChange={setImportanceFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by importance" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All emails</SelectItem>
-                    <SelectItem value="important">Important</SelectItem>
-                    <SelectItem value="not_important">Not important</SelectItem>
-                    <SelectItem value="unclassified">Unclassified</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -146,13 +119,13 @@ export default function EmailsPage() {
                 <div className="space-y-3">
                   {emails.length > 0 ? (
                     emails.map((email) => (
-                      <EmailCard key={email.id} email={email} onImportanceChange={handleImportanceChange} />
+                      <EmailCard key={email.id} email={email} />
                     ))
                   ) : (
                     <div className="text-center py-12">
                       <p className="text-muted-foreground">No emails found</p>
                       {searchQuery && (
-                        <p className="text-sm text-muted-foreground mt-2">Try adjusting your search query or filters</p>
+                        <p className="text-sm text-muted-foreground mt-2">Try adjusting your search query</p>
                       )}
                     </div>
                   )}

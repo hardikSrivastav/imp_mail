@@ -40,7 +40,7 @@ export async function startDigestScheduler(): Promise<void> {
   cron.schedule('* * * * *', async () => {
     try {
       const users = await db.all<any[]>(
-        'SELECT id, digest_enabled, digest_times, timezone, last_digest_at, auto_sync_enabled, auto_sync_interval_minutes FROM users',
+        'SELECT id, email, digest_enabled, digest_times, timezone, last_digest_at, auto_sync_enabled, auto_sync_interval_minutes FROM users',
       );
       for (const u of users) {
         // Auto incremental sync
@@ -76,9 +76,9 @@ export async function startDigestScheduler(): Promise<void> {
           if (deltaMin < 1) continue;
         }
 
-        const items = await digestService.computeDigestForUser(u.id, {});
-        await digestService.recordDigestSent(u.id, items);
-        console.log(`[DIGEST] Sent digest for user ${u.id} with ${items.length} threads`);
+        // Use the enhanced processDigestForUser method
+        await digestService.processDigestForUser(u.id, u.email);
+        console.log(`[DIGEST] Processed digest for user ${u.id}`);
       }
     } catch (err) {
       console.error('[DIGEST] scheduler error:', err);

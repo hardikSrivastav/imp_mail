@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api-client"
 
 export default function DigestSettingsPage() {
   const [enabled, setEnabled] = useState(true)
   const [times, setTimes] = useState<string[]>(["11:00","21:00"])
   const [timezone, setTimezone] = useState("Asia/Kolkata")
+  const [emailFilter, setEmailFilter] = useState<'all' | 'important'>('all')
+  const [emailDelivery, setEmailDelivery] = useState<'email' | 'none'>('email')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -29,6 +33,8 @@ export default function DigestSettingsPage() {
         setEnabled(Boolean(d.enabled))
         setTimes(Array.isArray(d.times) && d.times.length ? d.times : ["11:00","21:00"])
         setTimezone(d.timezone || "Asia/Kolkata")
+        setEmailFilter(d.emailFilter || 'all')
+        setEmailDelivery(d.emailDelivery || 'email')
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load settings")
       } finally {
@@ -44,7 +50,11 @@ export default function DigestSettingsPage() {
     setTimes(next)
   }
 
-  const addTime = () => setTimes([...times, "12:00"])
+  const addTime = () => {
+    if (times.length < 2) {
+      setTimes([...times, "12:00"])
+    }
+  }
   const removeTime = (i: number) => setTimes(times.filter((_, idx) => idx !== i))
 
   const save = async () => {
@@ -52,12 +62,26 @@ export default function DigestSettingsPage() {
       setSaving(true)
       setError(null)
       setMessage(null)
-      await apiClient.updateDigestSettings({ enabled, times, timezone })
+      await apiClient.updateDigestSettings({ enabled, times, timezone, emailFilter, emailDelivery })
       setMessage("Saved")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const testEmail = async () => {
+    try {
+      setTesting(true)
+      setError(null)
+      setMessage(null)
+      await apiClient.testDigestEmail()
+      setMessage("Test email sent successfully!")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send test email")
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -89,7 +113,7 @@ export default function DigestSettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Times (24h, HH:MM)</Label>
+                  <Label>Times (24h, HH:MM) - Max 2 per day</Label>
                   <div className="space-y-2">
                     {times.map((t, i) => (
                       <div key={i} className="flex gap-2">
@@ -102,7 +126,9 @@ export default function DigestSettingsPage() {
                       </div>
                     ))}
                   </div>
-                  <Button type="button" variant="outline" onClick={addTime}>Add time</Button>
+                  {times.length < 2 && (
+                    <Button type="button" variant="outline" onClick={addTime}>Add time</Button>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -110,7 +136,46 @@ export default function DigestSettingsPage() {
                   <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Asia/Kolkata" className="max-w-[260px]" />
                 </div>
 
-                <Button onClick={save} disabled={saving || loading}>{saving ? 'Saving…' : 'Save Settings'}</Button>
+                <div className="space-y-2">
+                  <Label>Email Filter</Label>
+                  <Select value={emailFilter} onValueChange={(value: 'all' | 'important') => setEmailFilter(value)}>
+                    <SelectTrigger className="max-w-[260px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All emails</SelectItem>
+                      <SelectItem value="important">Important emails only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Choose whether to include all emails or only those marked as important in your digest.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Email Delivery</Label>
+                  <Select value={emailDelivery} onValueChange={(value: 'email' | 'none') => setEmailDelivery(value)}>
+                    <SelectTrigger className="max-w-[260px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">Send via email</SelectItem>
+                      <SelectItem value="none">Archive only (no email)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Choose whether to receive digest emails or just archive them for viewing in the app.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={save} disabled={saving || loading}>{saving ? 'Saving…' : 'Save Settings'}</Button>
+                  {emailDelivery === 'email' && (
+                    <Button onClick={testEmail} variant="outline" disabled={testing || loading}>
+                      {testing ? 'Sending…' : 'Test Email'}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
