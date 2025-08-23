@@ -423,7 +423,7 @@ class ApiClient {
   }
 
   // Digest
-  async computeDigest(options: { windowHours?: number; minItems?: number; threshold?: number; dryRun?: boolean } = {}) {
+  async computeDigest(options: { windowHours?: number; minItems?: number; emailFilter?: 'all' | 'important'; dryRun?: boolean } = {}) {
     return this.post("/api/digest/send-now", options)
   }
 

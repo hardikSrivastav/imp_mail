@@ -1,36 +1,58 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { apiClient } from "@/lib/api-client"
 import Link from "next/link"
 
 export default function DigestPage() {
-  const [windowHours, setWindowHours] = useState<number>(12)
-  const [threshold, setThreshold] = useState<number>(0.6)
   const [loading, setLoading] = useState(false)
+  const [settingsLoading, setSettingsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<Array<{ emailId: string; subject: string; sender: string; receivedAt: string; similarity: number }>>([])
-  const [totalResults, setTotalResults] = useState<number>(0)
+  const [digestSettings, setDigestSettings] = useState<{ emailFilter: 'all' | 'important'; windowHours?: number } | null>(null)
+
+  // Load digest settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setSettingsLoading(true)
+        const res = await apiClient.getDigestSettings()
+        const settings = res.data
+        setDigestSettings({
+          emailFilter: settings.emailFilter || 'all',
+          windowHours: 12 // Default window hours
+        })
+      } catch (e) {
+        console.error('Failed to load digest settings:', e)
+        // Use defaults if settings can't be loaded
+        setDigestSettings({
+          emailFilter: 'all',
+          windowHours: 12
+        })
+      } finally {
+        setSettingsLoading(false)
+      }
+    }
+    loadSettings()
+  }, [])
 
   const runPreview = async () => {
+    if (!digestSettings) return
+    
     try {
       setLoading(true)
       setError(null)
-      const res = await apiClient.computeDigest({ windowHours, threshold, dryRun: true })
+      const res = await apiClient.computeDigest({ 
+        dryRun: true,
+        emailFilter: digestSettings.emailFilter,
+        windowHours: digestSettings.windowHours
+      })
       const data = res.data as any
-      const allResults = data.results || []
-      
-      // Filter results to only include emails with similarity >= threshold
-      const filteredResults = allResults.filter((r: any) => r.similarity >= threshold)
-      
-      setTotalResults(allResults.length)
-      setResults(filteredResults)
+      setResults(data.results || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to compute digest")
     } finally {
@@ -63,23 +85,40 @@ export default function DigestPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Digest Settings (Preview)</CardTitle>
-                <CardDescription>Windowed, thread-first, thresholded</CardDescription>
+                <CardTitle>Digest Preview</CardTitle>
+                <CardDescription>
+                  Preview your personalized email digest based on current settings
+                  {digestSettings && (
+                    <span className="block mt-1 text-xs">
+                      Filter: <span className="font-medium">
+                        {digestSettings.emailFilter === 'important' ? 'Important emails only' : 'All emails'}
+                      </span>
+                    </span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Window (hours)</Label>
-                    <Input type="number" value={windowHours} min={1} max={72} onChange={(e) => setWindowHours(parseInt(e.target.value || '12'))} />
-                  </div>
-                  <div>
-                    <Label>Threshold</Label>
-                    <Input type="number" step="0.01" min={0} max={1} value={threshold} onChange={(e) => setThreshold(parseFloat(e.target.value || '0.6'))} />
-                  </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={runPreview} 
+                    disabled={loading || settingsLoading || !digestSettings}
+                  >
+                    {loading ? 'Computing…' : settingsLoading ? 'Loading settings…' : 'Preview Digest'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.reload()}
+                    disabled={loading || settingsLoading}
+                    title="Refresh to load latest settings"
+                  >
+                    Refresh
+                  </Button>
                 </div>
-                <Button onClick={runPreview} disabled={loading}>
-                  {loading ? 'Computing…' : 'Preview Digest'}
-                </Button>
+                {digestSettings?.emailFilter === 'important' && (
+                  <p className="text-sm text-muted-foreground">
+                    This preview will only show emails that have been classified as important by your AI model.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -87,19 +126,24 @@ export default function DigestPage() {
               <CardHeader>
                 <CardTitle>Results</CardTitle>
                 <CardDescription>
-                  {results.length} threads (filtered from {totalResults} total)
+                  {results.length} relevant threads found
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {error && <div className="text-sm text-destructive">{error}</div>}
-                {results.length === 0 && !loading && (
-                  <div className="text-sm text-muted-foreground">No items in the current window</div>
+                {results.length === 0 && !loading && digestSettings && (
+                  <div className="text-sm text-muted-foreground">
+                    {digestSettings.emailFilter === 'important' 
+                      ? "No important emails found in the current window. Try training your AI model with more examples or check if you have emails classified as important."
+                      : "No relevant threads found"
+                    }
+                  </div>
                 )}
                 {results.map((r) => (
                   <div key={r.emailId} className="border rounded p-3">
                     <div className="text-sm font-medium">{r.subject || '(no subject)'}</div>
                     <div className="text-xs text-muted-foreground">{r.sender} · {new Date(r.receivedAt).toLocaleString()}</div>
-                    <div className="text-xs">score: {r.similarity.toFixed(3)}</div>
+                    <div className="text-xs">relevance: {r.similarity.toFixed(3)}</div>
                   </div>
                 ))}
               </CardContent>

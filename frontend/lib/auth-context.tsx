@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react"
 import { apiClient, type User } from "./api-client"
 
 interface AuthContextType {
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const refreshAuth = () => {
+  const refreshAuth = useCallback(() => {
     const storedToken = localStorage.getItem("jwt_token")
     const storedUser = localStorage.getItem("user")
     
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     refreshAuth()

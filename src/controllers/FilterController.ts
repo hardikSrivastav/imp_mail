@@ -531,16 +531,16 @@ export class FilterController {
   /**
    * POST /api/digest/send-now
    * Compute a digest for the current user and record it as sent (no email delivery here)
-   * Body: { windowHours?: number, minItems?: number, threshold?: number, dryRun?: boolean }
+   * Body: { windowHours?: number, minItems?: number, emailFilter?: 'all' | 'important', dryRun?: boolean }
    */
   async sendDigestNow(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
+try {
       const userId = req.user!.id;
-      const { windowHours, minItems, threshold, dryRun } = req.body || {};
+      const { windowHours, minItems, emailFilter, dryRun } = req.body || {};
       const digestService = new DigestService();
-      const items = await digestService.computeDigestForUser(userId, { windowHours, minItems, threshold });
+      const items = await digestService.computeDigestForUser(userId, { windowHours, minItems, emailFilter });
       if (!dryRun) {
-        await digestService.recordDigestSent(userId, items);
+        await digestService.recordDigestSent(userId, items, { emailFilter });
       }
       res.json({ count: items.length, results: items, recorded: !dryRun });
     } catch (error) {

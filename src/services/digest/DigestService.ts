@@ -20,7 +20,6 @@ interface DigestItem {
 interface ComputeOptions {
   windowHours?: number; // default 12
   minItems?: number; // default 5
-  threshold?: number; // default 0.6
   emailFilter?: 'all' | 'important'; // default 'all'
   generateSummaries?: boolean; // default false
 }
@@ -40,7 +39,6 @@ interface DigestHistoryItem {
   emailFilter: string;
   deliveryMethod: string;
   windowHours: number;
-  threshold: number;
   emailIds: string[];
 }
 
@@ -95,7 +93,6 @@ export class DigestService {
     const db = await this.getDb();
     const windowHours = opts.windowHours ?? 12;
     const minItems = opts.minItems ?? 5;
-    const threshold = opts.threshold ?? parseFloat(process.env.DIGEST_THRESHOLD || '0.6');
     const emailFilter = opts.emailFilter ?? 'all';
     const generateSummaries = opts.generateSummaries ?? false;
 
@@ -162,15 +159,16 @@ export class DigestService {
       similarity: v.sim,
     } as DigestItem));
 
-    // Filter and guard rails
-    let filtered = items.filter(i => i.similarity >= threshold);
-    if (filtered.length === 0) {
-      // Fallback: top by similarity
-      filtered = items.sort((a, b) => b.similarity - a.similarity).slice(0, Math.min(minItems, items.length));
-    } else {
-      // Presentation order: newest first, but significance is similarity-based only
-      filtered.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+    // Sort by relevance and take top items
+    let filtered = items.sort((a, b) => b.similarity - a.similarity);
+    
+    // If we have too many items, limit to reasonable number for digest
+    if (filtered.length > minItems * 2) {
+      filtered = filtered.slice(0, minItems * 2);
     }
+    
+    // Final presentation order: newest first
+    filtered.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
 
     // Generate summaries if requested
     if (generateSummaries && filtered.length > 0) {
@@ -213,7 +211,6 @@ export class DigestService {
       deliveryMethod?: string;
       digestContent?: string;
       windowHours?: number;
-      threshold?: number;
     } = {}
   ): Promise<string> {
     const db = await this.getDb();
@@ -223,16 +220,15 @@ export class DigestService {
     await db.run(
       `INSERT INTO digest_log (
         id, user_id, sent_at, threads_count, email_ids_json, 
-        email_filter, delivery_method, digest_content, window_hours, threshold
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        email_filter, delivery_method, digest_content, window_hours
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, userId, nowIso, threads.length, 
         JSON.stringify(threads.map(t => t.emailId)),
         options.emailFilter || 'all',
         options.deliveryMethod || 'email',
         options.digestContent || null,
-        options.windowHours || 12,
-        options.threshold || 0.6
+        options.windowHours || 12
       ],
     );
     
@@ -367,7 +363,7 @@ export class DigestService {
     
     const rows = await db.all<any[]>(
       `SELECT id, sent_at, threads_count, email_filter, delivery_method, 
-              window_hours, threshold, email_ids_json
+              window_hours, email_ids_json
        FROM digest_log 
        WHERE user_id = ? 
        ORDER BY sent_at DESC 
@@ -382,7 +378,6 @@ export class DigestService {
       emailFilter: row.email_filter || 'all',
       deliveryMethod: row.delivery_method || 'email',
       windowHours: row.window_hours || 12,
-      threshold: row.threshold || 0.6,
       emailIds: JSON.parse(row.email_ids_json || '[]'),
     }));
   }
@@ -399,7 +394,7 @@ export class DigestService {
     // Get digest log entry
     const digestRow = await db.get<any>(
       `SELECT id, sent_at, threads_count, email_filter, delivery_method, 
-              window_hours, threshold, email_ids_json, digest_content
+              window_hours, email_ids_json, digest_content
        FROM digest_log 
        WHERE id = ? AND user_id = ?`,
       [digestId, userId]
@@ -421,7 +416,6 @@ export class DigestService {
           emailFilter: digestRow.email_filter || 'all',
           deliveryMethod: digestRow.delivery_method || 'email',
           windowHours: digestRow.window_hours || 12,
-          threshold: digestRow.threshold || 0.6,
           emailIds: [],
         },
         emails: [],
@@ -460,7 +454,6 @@ export class DigestService {
         emailFilter: digestRow.email_filter || 'all',
         deliveryMethod: digestRow.delivery_method || 'email',
         windowHours: digestRow.window_hours || 12,
-        threshold: digestRow.threshold || 0.6,
         emailIds,
       },
       emails: digestItems,
@@ -474,7 +467,6 @@ export class DigestService {
     try {
       const deliveryOptions = {
         windowHours: options.windowHours || 12,
-        threshold: options.threshold || 0.6,
         emailFilter: options.emailFilter || 'all',
         digestContent: JSON.stringify(digestItems), // Store for history
       };

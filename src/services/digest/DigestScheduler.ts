@@ -31,7 +31,7 @@ export async function startDigestScheduler(): Promise<void> {
   const oauthConfig = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3005/auth/callback'
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback'
   };
   const oauthManager = new OAuthManager(oauthConfig);
   const tokenStore = new TokenStore(db, process.env.ENCRYPTION_KEY || 'your-encryption-key');

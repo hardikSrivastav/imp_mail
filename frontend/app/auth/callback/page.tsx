@@ -14,8 +14,11 @@ export default function AuthCallbackPage() {
   const { refreshAuth } = useAuth()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
+  const [hasProcessed, setHasProcessed] = useState(false)
 
   useEffect(() => {
+    // Prevent multiple executions
+    if (hasProcessed) return;
     const handleCallback = async () => {
       try {
         // Check if we have a token directly from the backend redirect
@@ -107,8 +110,9 @@ export default function AuthCallbackPage() {
       }
     }
 
+    setHasProcessed(true)
     handleCallback()
-  }, [searchParams, router, refreshAuth])
+  }, [searchParams, router, refreshAuth, hasProcessed])
 
   if (status === "loading") {
     return (

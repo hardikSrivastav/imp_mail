@@ -13,7 +13,6 @@ interface DigestEmailData {
 
 interface DigestDeliveryOptions {
   windowHours: number;
-  threshold: number;
   emailFilter: 'all' | 'important';
   digestContent: string;
 }
@@ -138,8 +137,8 @@ export class EmailDeliveryService {
                 <div class="stat-label">Filter</div>
               </div>
               <div class="stat-item">
-                <div class="stat-value">${(options.threshold * 100).toFixed(0)}%</div>
-                <div class="stat-label">Threshold</div>
+                <div class="stat-value">${options.windowHours}h</div>
+                <div class="stat-label">Window</div>
               </div>
             </div>
           </div>
@@ -148,7 +147,7 @@ export class EmailDeliveryService {
             ${digestData.length === 0 ? `
               <div class="no-emails">
                 <h3>No new emails in this digest</h3>
-                <p>You're all caught up! No emails met the importance threshold in the last ${options.windowHours} hours.</p>
+                <p>You're all caught up! No important emails found in the last ${options.windowHours} hours.</p>
               </div>
             ` : digestData.map(email => `
               <div class="email-item">
@@ -186,7 +185,7 @@ export class EmailDeliveryService {
     const textContent = `
 EMAIL DIGEST - ${timeStr}
 
-${digestData.length} Important Thread${digestData.length !== 1 ? 's' : ''} (${emailFilterText}, ${options.windowHours}h window, ${(options.threshold * 100).toFixed(0)}% threshold)
+${digestData.length} Important Thread${digestData.length !== 1 ? 's' : ''} (${emailFilterText}, ${options.windowHours}h window)
 
 ${digestData.length === 0 ? 
   `No new emails in this digest. You're all caught up!` : 
