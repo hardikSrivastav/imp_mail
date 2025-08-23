@@ -38,6 +38,63 @@ export const migrations: Migration[] = [
       await db.exec('DROP TABLE IF EXISTS users;');
     }
   },
+  {
+    version: 9,
+    name: 'add_auto_sync_settings',
+    up: async (db: Database) => {
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN auto_sync_enabled INTEGER DEFAULT 1;
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN auto_sync_interval_minutes INTEGER DEFAULT 5;
+      `).catch(() => {});
+    },
+    down: async (db: Database) => {
+      // No-op for SQLite column drops
+    }
+  },
+  {
+    version: 8,
+    name: 'add_digest_settings_and_log',
+    up: async (db: Database) => {
+      // Extend users table with digest settings
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN digest_enabled INTEGER DEFAULT 1;
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN digest_times TEXT DEFAULT '["11:00","21:00"]';
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Asia/Kolkata';
+      `).catch(() => {});
+      await db.exec(`
+        ALTER TABLE users ADD COLUMN last_digest_at TEXT;
+      `).catch(() => {});
+
+      // Digest log table
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS digest_log (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          sent_at TEXT NOT NULL,
+          threads_count INTEGER NOT NULL,
+          email_ids_json TEXT NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_digest_log_user_id ON digest_log(user_id);
+      `);
+      await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_digest_log_sent_at ON digest_log(sent_at);
+      `);
+    },
+    down: async (db: Database) => {
+      await db.exec('DROP TABLE IF EXISTS digest_log;');
+      // Note: SQLite cannot drop columns easily; keep added columns on users.
+    }
+  },
 
   {
     version: 2,

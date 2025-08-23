@@ -13,6 +13,7 @@ import { RefreshCw, RotateCcw, Zap } from "lucide-react"
 
 export default function ExpectationsPage() {
   const [expectations, setExpectations] = useState<Expectations | null>(null)
+  const [savedExamples, setSavedExamples] = useState<{ important: string[]; notImportant: string[] }>({ important: [], notImportant: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showResetModal, setShowResetModal] = useState(false)
@@ -25,14 +26,25 @@ export default function ExpectationsPage() {
       setError(null)
       const response = await apiClient.getExpectations()
       const server = (response.data as any)?.expectations
+      const selectedExampleEmailIds = (response.data as any)?.selectedExampleEmailIds
+      
       if (server) {
-        const mergedExamples: string[] = [
-          ...(server.examples?.important || []),
-          ...(server.examples?.notImportant || []),
-        ]
-        setExpectations({ title: server.title, description: server.description, examples: mergedExamples })
+        setExpectations({ title: server.title, description: server.description, examples: [] })
+        const savedExamplesData = {
+          important: server.examples?.important || [],
+          notImportant: server.examples?.notImportant || [],
+        }
+        setSavedExamples(savedExamplesData)
+        // Pass down selected ids so pickers can pre-check boxes via component props
+        setExpectations(prev => {
+          const next: any = prev ? { ...prev } : { title: server.title, description: server.description, examples: [] }
+          next.__selectedImportantIds = selectedExampleEmailIds?.important || []
+          next.__selectedNotImportantIds = selectedExampleEmailIds?.notImportant || []
+          return next
+        })
       } else {
         setExpectations(null)
+        setSavedExamples({ important: [], notImportant: [] })
       }
     } catch (err) {
       // If expectations don't exist yet, that's okay
@@ -139,6 +151,7 @@ export default function ExpectationsPage() {
 
             <ExpectationsForm
               expectations={expectations}
+              savedExamples={savedExamples}
               onSave={handleSaveExpectations}
               onTriggerClassification={handleTriggerClassification}
               isLoading={loading}

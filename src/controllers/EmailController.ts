@@ -89,13 +89,20 @@ export class EmailController {
       }
 
       const emails = await this.emailSearchService.getFilteredEmails(userId, options);
+      // Get total count for pagination (without limit/offset)
+      const total = await this.emailRepository.getEmailsCountForUser(userId, {
+        importance: options.importance,
+        sender: options.sender,
+        dateFrom: options.dateFrom,
+        dateTo: options.dateTo,
+      });
 
       res.json({
         emails,
         pagination: {
           limit: options.limit,
           offset: options.offset,
-          total: emails.length
+          total
         }
       });
     } catch (error) {

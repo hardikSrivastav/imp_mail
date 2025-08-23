@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
-import { LayoutDashboard, Mail, Target, BarChart3, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Mail, Target, BarChart3, Settings, LogOut, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navigation = [
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Emails", href: "/emails", icon: Mail },
   { name: "Expectations", href: "/expectations", icon: Target },
   { name: "Insights", href: "/insights", icon: BarChart3 },
+  { name: "Digest", href: "/digest", icon: Bell },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

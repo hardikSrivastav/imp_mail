@@ -128,7 +128,9 @@ export default function TopSimilarPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {results.results.map((result) => (
+                  {results.results.map((result) => {
+                    const html = (result as any).html || (result.email as any).htmlContent || null
+                    return (
                     <Card key={result.email.id} className="overflow-hidden">
                       <CardContent className="p-0">
                         <div className="p-4">
@@ -145,7 +147,7 @@ export default function TopSimilarPage() {
                               </div>
                             </div>
 
-                            {result.html && (
+                            {html && (
                               <Button variant="ghost" size="sm" onClick={() => toggleEmailExpansion(result.email.id)}>
                                 {expandedEmails.has(result.email.id) ? (
                                   <>
@@ -163,10 +165,10 @@ export default function TopSimilarPage() {
                           </div>
                         </div>
 
-                        {result.html && expandedEmails.has(result.email.id) && (
+                        {html && expandedEmails.has(result.email.id) && (
                           <div className="border-t bg-muted/20 p-4">
                             <EmailContent
-                              html={result.html}
+                              html={html}
                               subject={result.email.subject}
                               sender={result.email.sender}
                               receivedAt={result.email.receivedAt}
@@ -175,7 +177,7 @@ export default function TopSimilarPage() {
                         )}
                       </CardContent>
                     </Card>
-                  ))}
+                  )})}
                 </div>
 
                 {results.results.length === 0 && (

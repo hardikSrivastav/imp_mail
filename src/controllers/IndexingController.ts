@@ -11,6 +11,7 @@ import { TokenStore } from '../services/auth/TokenStore';
 import { EmailFetcher } from '../services/email/EmailFetcher';
 import { EmailParser } from '../services/email/EmailParser';
 import { VectorEmbeddingService } from '../services/embedding/VectorEmbeddingService';
+import { getDatabase } from '../config/database';
 
 export interface TriggerSyncRequest {
   type?: 'full' | 'incremental';
@@ -328,6 +329,55 @@ export class IndexingController {
         error: 'Internal server error',
         message: 'Failed to retrieve indexing status'
       });
+    }
+  }
+
+  /**
+   * GET /api/indexing/auto-sync/settings
+   */
+  async getAutoSyncSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const row = await this.db.get<any>('SELECT auto_sync_enabled, auto_sync_interval_minutes FROM users WHERE id = ?', [userId]);
+      res.json({
+        enabled: row?.auto_sync_enabled ? Boolean(row.auto_sync_enabled) : true,
+        intervalMinutes: row?.auto_sync_interval_minutes ?? 5,
+      });
+    } catch (error) {
+      console.error('❌ Failed to get auto-sync settings:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to get auto-sync settings' });
+    }
+  }
+
+  /**
+   * PUT /api/indexing/auto-sync/settings
+   * Body: { enabled?: boolean, intervalMinutes?: number }
+   */
+  async updateAutoSyncSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { enabled, intervalMinutes } = req.body || {};
+      const fields: string[] = [];
+      const values: any[] = [];
+      if (enabled !== undefined) { fields.push('auto_sync_enabled = ?'); values.push(enabled ? 1 : 0); }
+      if (intervalMinutes !== undefined) {
+        const n = Number(intervalMinutes);
+        if (!Number.isFinite(n) || n < 1 || n > 60) {
+          res.status(400).json({ error: 'Invalid interval', message: 'intervalMinutes must be between 1 and 60' });
+          return;
+        }
+        fields.push('auto_sync_interval_minutes = ?'); values.push(n);
+      }
+      if (fields.length === 0) {
+        res.status(400).json({ error: 'No changes', message: 'Provide enabled or intervalMinutes' });
+        return;
+      }
+      values.push(userId);
+      await this.db.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+      res.json({ message: 'Auto-sync settings updated' });
+    } catch (error) {
+      console.error('❌ Failed to update auto-sync settings:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to update auto-sync settings' });
     }
   }
 

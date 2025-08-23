@@ -7,6 +7,8 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import { UserExpectations } from '../types/models';
 import { VectorEmbeddingService } from '../services/embedding/VectorEmbeddingService';
 import { QdrantRepository } from '../repositories/QdrantRepository';
+import { DigestService } from '../services/digest/DigestService';
+import { getDatabase } from '../config/database';
 
 export interface CreateExpectationsRequest {
   title: string;
@@ -182,7 +184,41 @@ export class FilterController {
         return;
       }
 
-      res.json({ expectations });
+      // Enhance response with best-guess email IDs for saved examples (by exact subject match)
+      const emailRepo = this.emailRepository;
+      const mapSubjectsToIds = async (subjects: string[] | undefined) => {
+        const out: string[] = [];
+        if (!subjects || subjects.length === 0) return out;
+        for (const s of subjects) {
+          // Extract subject line from the stored example
+          // Examples are stored as "Subject | ... - Content" or "Subject — Content"
+          let subjectLine = s;
+          const dashIndex = s.indexOf(' - ');
+          const emDashIndex = s.indexOf(' — ');
+          const separatorIndex = dashIndex !== -1 ? dashIndex : emDashIndex;
+          
+          if (separatorIndex !== -1) {
+            subjectLine = s.substring(0, separatorIndex).trim();
+          }
+          
+          console.log(`[Expectations] Mapping example to subject: "${s.substring(0, 50)}..." -> "${subjectLine}"`);
+          
+          const idExact = await (emailRepo as any).getLatestEmailIdBySubject?.(userId, subjectLine).catch(() => null);
+          const idLike = idExact || await (emailRepo as any).getLatestEmailIdBySubjectLike?.(userId, subjectLine).catch(() => null);
+          const id = idLike;
+          if (id) {
+            console.log(`[Expectations] Found email ID ${id} for subject "${subjectLine}"`);
+            out.push(id);
+          } else {
+            console.log(`[Expectations] No email ID found for subject "${subjectLine}"`);
+          }
+        }
+        return out;
+      };
+      const importantIds = await mapSubjectsToIds(expectations?.examples?.important);
+      const notImportantIds = await mapSubjectsToIds(expectations?.examples?.notImportant);
+
+      res.json({ expectations, selectedExampleEmailIds: { important: importantIds, notImportant: notImportantIds } });
     } catch (error) {
       console.error('❌ Failed to get expectations:', error);
       res.status(500).json({
@@ -494,6 +530,97 @@ export class FilterController {
         error: 'Internal server error',
         message: 'Failed to retrieve filtering status'
       });
+    }
+  }
+
+  /**
+   * POST /api/digest/send-now
+   * Compute a digest for the current user and record it as sent (no email delivery here)
+   * Body: { windowHours?: number, minItems?: number, threshold?: number, dryRun?: boolean }
+   */
+  async sendDigestNow(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { windowHours, minItems, threshold, dryRun } = req.body || {};
+      const digestService = new DigestService();
+      const items = await digestService.computeDigestForUser(userId, { windowHours, minItems, threshold });
+      if (!dryRun) {
+        await digestService.recordDigestSent(userId, items);
+      }
+      res.json({ count: items.length, results: items, recorded: !dryRun });
+    } catch (error) {
+      console.error('❌ Failed to compute/send digest:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to compute/send digest' });
+    }
+  }
+
+  /**
+   * GET /api/digest/settings
+   * Returns digest settings for the current user
+   */
+  async getDigestSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const db = await getDatabase();
+      const row = await db.get<any>(
+        'SELECT digest_enabled, digest_times, timezone, last_digest_at FROM users WHERE id = ?',
+        [userId],
+      );
+      let times: string[] = ["11:00","21:00"];
+      try { if (row?.digest_times) times = JSON.parse(row.digest_times); } catch {}
+      res.json({
+        enabled: row?.digest_enabled ? Boolean(row.digest_enabled) : true,
+        times,
+        timezone: row?.timezone || 'Asia/Kolkata',
+        lastDigestAt: row?.last_digest_at || null,
+      });
+    } catch (error) {
+      console.error('❌ Failed to get digest settings:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to get digest settings' });
+    }
+  }
+
+  /**
+   * PUT /api/digest/settings
+   * Body: { enabled?: boolean, times?: string[], timezone?: string }
+   */
+  async updateDigestSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { enabled, times, timezone } = req.body || {};
+
+      // Validate times if provided (HH:MM 24h format)
+      if (times !== undefined) {
+        if (!Array.isArray(times) || times.length === 0) {
+          res.status(400).json({ error: 'Invalid times', message: 'times must be a non-empty array' });
+          return;
+        }
+        const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+        for (const t of times) {
+          if (typeof t !== 'string' || !timeRe.test(t)) {
+            res.status(400).json({ error: 'Invalid time format', message: `Invalid time: ${t}. Use HH:MM (24h)` });
+            return;
+          }
+        }
+      }
+
+      const db = await getDatabase();
+      const fields: string[] = [];
+      const values: any[] = [];
+      if (enabled !== undefined) { fields.push('digest_enabled = ?'); values.push(enabled ? 1 : 0); }
+      if (times !== undefined) { fields.push('digest_times = ?'); values.push(JSON.stringify(times)); }
+      if (timezone !== undefined) { fields.push('timezone = ?'); values.push(timezone); }
+      if (fields.length === 0) {
+        res.status(400).json({ error: 'No changes', message: 'Provide enabled, times or timezone' });
+        return;
+      }
+      values.push(userId);
+      await db.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+
+      res.json({ message: 'Digest settings updated' });
+    } catch (error) {
+      console.error('❌ Failed to update digest settings:', error);
+      res.status(500).json({ error: 'Internal server error', message: 'Failed to update digest settings' });
     }
   }
 

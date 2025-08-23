@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,17 +23,31 @@ import { EmailPicker } from "@/components/email-picker"
 
 interface ExpectationsFormProps {
   expectations: Expectations | null
+  savedExamples?: { important: string[]; notImportant: string[] }
   onSave: (expectations: Expectations) => Promise<void>
   onTriggerClassification?: () => Promise<void>
   isLoading?: boolean
 }
 
-export function ExpectationsForm({ expectations, onSave, onTriggerClassification, isLoading }: ExpectationsFormProps) {
+export function ExpectationsForm({ expectations, savedExamples, onSave, onTriggerClassification, isLoading }: ExpectationsFormProps) {
   const [title, setTitle] = useState(expectations?.title || "")
   const [description, setDescription] = useState(expectations?.description || "")
   const [examples, setExamples] = useState<string[]>(expectations?.examples || [""])
-  const [selectedImportantIds, setSelectedImportantIds] = useState<string[]>([])
-  const [selectedNotImportantIds, setSelectedNotImportantIds] = useState<string[]>([])
+  const [selectedImportantIds, setSelectedImportantIds] = useState<string[]>((expectations as any)?.__selectedImportantIds || [])
+  const [selectedNotImportantIds, setSelectedNotImportantIds] = useState<string[]>((expectations as any)?.__selectedNotImportantIds || [])
+
+  // Update selected IDs when expectations change
+  useEffect(() => {
+    if (expectations) {
+      const importantIds = (expectations as any)?.__selectedImportantIds || []
+      const notImportantIds = (expectations as any)?.__selectedNotImportantIds || []
+      setSelectedImportantIds(importantIds)
+      setSelectedNotImportantIds(notImportantIds)
+    }
+  }, [expectations])
+
+  // When savedExamples are provided (from backend), seed the pickers by resolving those examples
+  // into ids is not trivial without a reverse map; instead, we show typed boxes empty and surface saved examples below.
   const [showClassificationDialog, setShowClassificationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -189,6 +203,8 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
               ))}
             </div>
 
+
+
             {/* Optional: pick emails to auto-generate JSON examples on backend */}
             <div className="grid gap-3 md:grid-cols-2">
               <EmailPicker
@@ -202,6 +218,8 @@ export function ExpectationsForm({ expectations, onSave, onTriggerClassification
                 onChange={setSelectedNotImportantIds}
               />
             </div>
+            
+
           </div>
 
           <div className="flex justify-end pt-4">

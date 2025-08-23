@@ -235,6 +235,86 @@ export class EmailRepository {
   }
 
   /**
+   * Get count of emails for a user with the same filters as getEmailsForUser
+   */
+  async getEmailsCountForUser(
+    userId: string,
+    options: {
+      importance?: 'important' | 'not_important' | 'unclassified';
+      sender?: string;
+      dateFrom?: Date;
+      dateTo?: Date;
+    } = {}
+  ): Promise<number> {
+    const db = await this.getDb();
+
+    let query = 'SELECT COUNT(*) as count FROM emails WHERE user_id = ?';
+    const params: any[] = [userId];
+
+    if (options.importance) {
+      query += ' AND importance = ?';
+      params.push(options.importance);
+    }
+
+    if (options.sender) {
+      query += ' AND sender LIKE ?';
+      params.push(`%${options.sender}%`);
+    }
+
+    if (options.dateFrom) {
+      query += ' AND received_at >= ?';
+      params.push(options.dateFrom.toISOString());
+    }
+
+    if (options.dateTo) {
+      query += ' AND received_at <= ?';
+      params.push(options.dateTo.toISOString());
+    }
+
+    try {
+      const row = await db.get<{ count: number }>(query, params);
+      return row?.count || 0;
+    } catch (error) {
+      console.error('❌ Failed to get emails count for user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find the most recent email id for a user by exact subject match
+   */
+  async getLatestEmailIdBySubject(userId: string, subject: string): Promise<string | null> {
+    const db = await this.getDb();
+    try {
+      const row = await db.get<{ id: string }>(
+        'SELECT id FROM emails WHERE user_id = ? AND subject = ? ORDER BY received_at DESC LIMIT 1',
+        [userId, subject],
+      );
+      return row?.id || null;
+    } catch (error) {
+      console.error('❌ Failed to get latest email id by subject:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find most recent email id by subject (exact or prefix match)
+   */
+  async getLatestEmailIdBySubjectLike(userId: string, subjectKey: string): Promise<string | null> {
+    const db = await this.getDb();
+    try {
+      const row = await db.get<{ id: string }>(
+        'SELECT id FROM emails WHERE user_id = ? AND (subject = ? OR subject LIKE ?) ORDER BY received_at DESC LIMIT 1',
+        [userId, subjectKey, `${subjectKey}%`],
+      );
+      return row?.id || null;
+    } catch (error) {
+      console.error('❌ Failed to get latest email id by subject like:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Full-text search across email content
    */
   async searchEmails(

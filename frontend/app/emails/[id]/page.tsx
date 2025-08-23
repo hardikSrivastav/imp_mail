@@ -26,7 +26,8 @@ export default function EmailDetailPage() {
         setLoading(true)
         setError(null)
         const response = await apiClient.getEmail(emailId)
-        setEmail(response.data)
+        const api = response.data as any
+        setEmail(api.email)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch email")
       } finally {
@@ -153,7 +154,7 @@ export default function EmailDetailPage() {
             </div>
 
             <EmailContent
-              html={email.html}
+              html={(email as any).htmlContent || (email as any).html}
               subject={email.subject}
               sender={email.sender}
               receivedAt={email.receivedAt}

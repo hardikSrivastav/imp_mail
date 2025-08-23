@@ -29,12 +29,11 @@ export default function EmailsPage() {
       const offset = (currentPage - 1) * itemsPerPage
       const params: any = { offset, limit: itemsPerPage }
 
-      if (searchQuery.trim()) {
-        params.q = searchQuery.trim()
-      }
-
-      const response = await apiClient.getEmails(params)
-      const emailsData = response.data.emails || response.data || []
+      const hasQuery = Boolean(searchQuery.trim())
+      const response = hasQuery
+        ? await apiClient.searchEmails({ query: searchQuery.trim(), offset, limit: itemsPerPage, useSemanticSearch: true, combineResults: true })
+        : await apiClient.getEmails(params)
+      const emailsData = hasQuery ? (response.data.results?.map((r: any) => r.email) || []) : (response.data.emails || [])
 
       // Filter by importance if needed
       let filteredEmails = emailsData
@@ -43,7 +42,7 @@ export default function EmailsPage() {
       }
 
       setEmails(filteredEmails)
-      setTotalEmails(response.data.total || filteredEmails.length)
+      setTotalEmails(hasQuery ? (response.data.results?.length || filteredEmails.length) : (response.data.pagination?.total ?? filteredEmails.length))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch emails")
     } finally {

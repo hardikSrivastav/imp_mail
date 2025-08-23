@@ -164,6 +164,10 @@ export async function createRoutes(): Promise<Router> {
   router.get('/filter/status', filterController.getFilteringStatus.bind(filterController));
   router.post('/filter/classify/:id', filterController.classifySingleEmail.bind(filterController));
   router.post('/filter/reset', filterController.resetClassifications.bind(filterController));
+  // Digest routes
+  router.post('/digest/send-now', filterController.sendDigestNow.bind(filterController));
+  router.get('/digest/settings', filterController.getDigestSettings.bind(filterController));
+  router.put('/digest/settings', filterController.updateDigestSettings.bind(filterController));
   // router.post('/filter/rules/timeslots', filterController.classifyByTimeslots.bind(filterController));
   // router.post('/filter/rules/oweek', filterController.classifyByOWeek.bind(filterController));
   router.get('/filter/scores', filterController.getPrototypeScores.bind(filterController));
@@ -174,6 +178,9 @@ export async function createRoutes(): Promise<Router> {
   router.post('/indexing/full', indexingController.triggerFullIndexing.bind(indexingController));
   router.post('/indexing/incremental', indexingController.triggerIncrementalIndexing.bind(indexingController));
   router.post('/indexing/sync', indexingController.triggerSync.bind(indexingController));
+  router.get('/indexing/auto-sync/settings', indexingController.getAutoSyncSettings.bind(indexingController));
+  router.put('/indexing/auto-sync/settings', indexingController.updateAutoSyncSettings.bind(indexingController));
+  // Auto-sync settings endpoints (reusing FilterController DB util would be overkill; add minimal handlers here later if needed)
   router.get('/indexing/status', indexingController.getIndexingStatus.bind(indexingController));
   router.get('/indexing/progress', indexingController.getIndexingProgress.bind(indexingController));
   router.post('/indexing/cancel', indexingController.cancelIndexing.bind(indexingController));

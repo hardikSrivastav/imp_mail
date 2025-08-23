@@ -108,6 +108,14 @@ class ApiClient {
     return this.post("/api/indexing/sync")
   }
 
+  // Auto sync settings
+  async getAutoSyncSettings() {
+    return this.get("/api/indexing/auto-sync/settings")
+  }
+  async updateAutoSyncSettings(options: { enabled?: boolean; intervalMinutes?: number }) {
+    return this.put("/api/indexing/auto-sync/settings", options)
+  }
+
   // Email operations
   async getEmails(params: { offset?: number; limit?: number; q?: string } = {}) {
     const searchParams = new URLSearchParams()
@@ -121,6 +129,16 @@ class ApiClient {
 
   async getEmail(id: string) {
     return this.get(`/api/emails/${id}`)
+  }
+
+  async searchEmails(params: { query: string; offset?: number; limit?: number; useSemanticSearch?: boolean; combineResults?: boolean }) {
+    const searchParams = new URLSearchParams()
+    searchParams.set("search", params.query)
+    if (params.offset !== undefined) searchParams.set("offset", String(params.offset))
+    if (params.limit !== undefined) searchParams.set("limit", String(params.limit))
+    if (params.useSemanticSearch !== undefined) searchParams.set("useSemanticSearch", String(params.useSemanticSearch))
+    if (params.combineResults !== undefined) searchParams.set("combineResults", String(params.combineResults))
+    return this.get(`/api/emails/search?${searchParams.toString()}`)
   }
 
   async updateEmailImportance(id: string, importance: "important" | "not_important" | "unclassified") {
@@ -174,6 +192,19 @@ class ApiClient {
   async batchClassify() {
     // Backend route is /api/filter/batch
     return this.post("/api/filter/batch")
+  }
+
+  // Digest
+  async computeDigest(options: { windowHours?: number; minItems?: number; threshold?: number; dryRun?: boolean } = {}) {
+    return this.post("/api/digest/send-now", options)
+  }
+
+  async getDigestSettings() {
+    return this.get("/api/digest/settings")
+  }
+
+  async updateDigestSettings(options: { enabled?: boolean; times?: string[]; timezone?: string }) {
+    return this.put("/api/digest/settings", options)
   }
 }
 

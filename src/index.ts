@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { createRoutes } from './routes';
 import { getDatabase } from './config/database';
 import { runMigrations } from './database/migrations';
+import { startDigestScheduler } from './services/digest/DigestScheduler';
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +91,14 @@ async function startServer() {
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log(`📚 API endpoints: http://localhost:${PORT}/api`);
     });
+
+    // Start digest scheduler (background)
+    try {
+      await startDigestScheduler();
+      console.log('⏰ Digest scheduler started');
+    } catch (e) {
+      console.error('Failed to start digest scheduler:', e);
+    }
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
