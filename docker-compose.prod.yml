@@ -2,12 +2,11 @@ services:
   app:
     build:
       context: .
-      target: development
+      target: production
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
-      - INDEXING_DEBUG=true
+      - NODE_ENV=production
       - OPENAI_MODEL=gpt-4o-mini
       - PROTOTYPE_HIGH_THRESHOLD=0.6
       - PROTOTYPE_LOW_THRESHOLD=0.5
@@ -16,14 +15,12 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./src:/app/src  # Mount source code for hot reloading
-      - ./package.json:/app/package.json  # Mount package.json for dependency changes
     depends_on:
       - redis
       - qdrant
     networks:
       - email-filter-network
-    command: npm run dev  # Use development command instead of production start
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -33,6 +30,7 @@ services:
       - redis_data:/data
     networks:
       - email-filter-network
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -43,12 +41,13 @@ services:
       - qdrant_data:/qdrant/storage
     networks:
       - email-filter-network
+    restart: unless-stopped
 
   # Python Email Classifier Service
   email-classifier:
     build:
       context: ./imp_mail2
-      target: development
+      target: production
     ports:
       - "8000:8000"
     environment:
@@ -67,17 +66,16 @@ services:
       - ./imp_mail2/data:/app/data
       - ./data:/app/shared_data
       - classifier_logs:/app/logs
-      - ./imp_mail2:/app  # Mount entire directory for development
     networks:
       - email-filter-network
     restart: unless-stopped
-    command: uvicorn email_classifier_service:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn email_classifier_service:app --host 0.0.0.0 --port 8000
 
   # Incremental Classifier Service
   incremental-classifier:
     build:
       context: ./imp_mail2
-      target: development
+      target: production
     environment:
       - VECTOR_STORE_TYPE=qdrant
       - QDRANT_HOST=qdrant
@@ -94,7 +92,6 @@ services:
       - ./imp_mail2/data:/app/data
       - ./data:/app/shared_data
       - classifier_logs:/app/logs
-      - ./imp_mail2:/app  # Mount entire directory for development
     networks:
       - email-filter-network
     restart: unless-stopped
@@ -104,23 +101,17 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: development
+      target: production
     ports:
       - "3005:3005"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://app:3000
     depends_on:
       - app
-    volumes:
-      - ./frontend:/app  # Mount entire frontend directory for development
-      - /app/node_modules  # Prevent node_modules from being overwritten
-      - /app/.next  # Preserve Next.js build cache
     networks:
       - email-filter-network
     restart: unless-stopped
-
-
 
 volumes:
   redis_data:
