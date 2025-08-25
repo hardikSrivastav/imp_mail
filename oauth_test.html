@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Test Helper - Intelligent Email Filter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .result {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .code {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 OAuth Test Helper</h1>
+        <p>This tool helps you test the complete OAuth flow for the Intelligent Email Filter API.</p>
+
+        <div class="step">
+            <h3>Step 1: Start OAuth Login</h3>
+            <p>Enter your @ashoka.edu.in email address:</p>
+            <input type="email" id="email" placeholder="your.name@ashoka.edu.in" value="test@ashoka.edu.in">
+            <button onclick="startLogin()">Start OAuth Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Complete Google OAuth</h3>
+            <p>After clicking the OAuth URL above, you'll be redirected to Google. Complete the authorization and copy the authorization code from the callback URL.</p>
+            <p><strong>Note:</strong> The callback URL will look like: <code>http://localhost:3000/api/auth/callback?code=AUTHORIZATION_CODE&state=STATE</code></p>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Exchange Code for Token</h3>
+            <p>Paste the authorization code and state from the callback URL:</p>
+            <input type="text" id="authCode" placeholder="Authorization code from Google">
+            <input type="text" id="state" placeholder="State parameter">
+            <button onclick="exchangeCode()">Get JWT Token</button>
+            <div id="tokenResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test Protected Endpoints</h3>
+            <p>Use the JWT token to test protected endpoints:</p>
+            <button onclick="testEmails()">Test /api/emails</button>
+            <button onclick="testFilterStatus()">Test /api/filter/status</button>
+            <button onclick="testIndexingStatus()">Test /api/indexing/status</button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Logout</h3>
+            <button onclick="logout()">Logout</button>
+            <div id="logoutResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        let jwtToken = '';
+        let oauthState = '';
+
+        async function startLogin() {
+            const email = document.getElementById('email').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Extract state from the auth URL
+                    const url = new URL(data.authUrl);
+                    oauthState = url.searchParams.get('state');
+                    document.getElementById('state').value = oauthState;
+                    
+                    resultDiv.className = 'result';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <strong>✅ OAuth URL Generated!</strong><br>
+                        <p>Click the link below to authorize with Google:</p>
+                        <a href="${data.authUrl}" target="_blank" style="word-break: break-all;">${data.authUrl}</a>
+                        <p><strong>State:</strong> ${oauthState}</p>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function exchangeCode() {
+            const code = document.getElementById('authCode').value;
+            const state = document.getElementById('state').value;
+            const resultDiv = document.getElementById('tokenResult');
+            
+            if (!code) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<strong>❌ Error:</strong> Please enter the authorization code';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/callback`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, state }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    jwtToken = data.token;
+                    resultDiv.className = 'result';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Authentication Successful!</strong><br>
+                        <strong>User:</strong> ${data.user.email}<br>
+                        <strong>JWT Token:</strong><br>
+                        <div class="code">${data.token}</div>
+                        <p>Token saved for testing protected endpoints!</p>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Token exchange failed');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function testEmails() {
+            await testEndpoint('/api/emails', 'GET');
+        }
+
+        async function testFilterStatus() {
+            await testEndpoint('/api/filter/status', 'GET');
+        }
+
+        async function testIndexingStatus() {
+            await testEndpoint('/api/indexing/status', 'GET');
+        }
+
+        async function testEndpoint(endpoint, method = 'GET') {
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!jwtToken) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<strong>❌ Error:</strong> No JWT token available. Complete the OAuth flow first.';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                resultDiv.className = response.ok ? 'result' : 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <strong>${response.ok ? '✅' : '❌'} ${method} ${endpoint}</strong><br>
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Response:</strong><br>
+                    <div class="code">${JSON.stringify(data, null, 2)}</div>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function logout() {
+            const resultDiv = document.getElementById('logoutResult');
+            
+            if (!jwtToken) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<strong>❌ Error:</strong> No JWT token available.';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`,
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    jwtToken = '';
+                    resultDiv.className = 'result';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Logout Successful!</strong><br>
+                        <p>${data.message}</p>
+                        <p>JWT token cleared.</p>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Logout failed');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

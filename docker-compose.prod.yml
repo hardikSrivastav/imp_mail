@@ -1,0 +1,125 @@
+services:
+  app:
+    build:
+      context: .
+      target: production
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OPENAI_MODEL=gpt-4o-mini
+      - PROTOTYPE_HIGH_THRESHOLD=0.6
+      - PROTOTYPE_LOW_THRESHOLD=0.5
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - qdrant
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+
+  # Python Email Classifier Service
+  email-classifier:
+    build:
+      context: ./imp_mail2
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+    volumes:
+      - ./imp_mail2/models:/app/models
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: uvicorn email_classifier_service:app --host 0.0.0.0 --port 8000
+
+  # Incremental Classifier Service
+  incremental-classifier:
+    build:
+      context: ./imp_mail2
+      target: production
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+      - email-classifier
+    volumes:
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: python incremental_classifier.py
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://app:3000
+    depends_on:
+      - app
+      - email-classifier
+      - incremental-classifier
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  qdrant_data:
+  classifier_logs:
+
+networks:
+  email-filter-network:
+    driver: bridge

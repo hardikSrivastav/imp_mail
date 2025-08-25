@@ -1,0 +1,132 @@
+services:
+  app:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - INDEXING_DEBUG=true
+      - OPENAI_MODEL=gpt-4o-mini
+      - PROTOTYPE_HIGH_THRESHOLD=0.6
+      - PROTOTYPE_LOW_THRESHOLD=0.5
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./src:/app/src  # Mount source code for hot reloading
+      - ./package.json:/app/package.json  # Mount package.json for dependency changes
+    depends_on:
+      - redis
+      - qdrant
+    networks:
+      - email-filter-network
+    command: npm run dev  # Use development command instead of production start
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - email-filter-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - email-filter-network
+
+  # Python Email Classifier Service
+  email-classifier:
+    build:
+      context: ./imp_mail2
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+    volumes:
+      - ./imp_mail2/models:/app/models
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+      - ./imp_mail2:/app  # Mount entire directory for development
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: uvicorn email_classifier_service:app --host 0.0.0.0 --port 8000 --reload
+
+  # Incremental Classifier Service
+  incremental-classifier:
+    build:
+      context: ./imp_mail2
+      target: development
+    environment:
+      - VECTOR_STORE_TYPE=qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=email_embeddings
+      - LOG_LEVEL=INFO
+      - CLASSIFIER_DATA_DIR=/app/data
+      - SQLITE_DB_PATH=/app/shared_data/emails.db
+      - PYTHONPATH=/app
+    depends_on:
+      - qdrant
+      - email-classifier
+    volumes:
+      - ./imp_mail2/data:/app/data
+      - ./data:/app/shared_data
+      - classifier_logs:/app/logs
+      - ./imp_mail2:/app  # Mount entire directory for development
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+    command: python incremental_classifier.py
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://app:3000
+    depends_on:
+      - app
+    volumes:
+      - ./frontend:/app  # Mount entire frontend directory for development
+      - /app/node_modules  # Prevent node_modules from being overwritten
+      - /app/.next  # Preserve Next.js build cache
+    networks:
+      - email-filter-network
+    restart: unless-stopped
+
+
+
+volumes:
+  redis_data:
+  qdrant_data:
+  classifier_logs:
+
+networks:
+  email-filter-network:
+    driver: bridge
