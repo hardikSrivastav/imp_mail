@@ -24,6 +24,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   email-classifier:
     build:
@@ -45,6 +50,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   incremental-classifier:
     deploy:
@@ -55,6 +65,11 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -76,6 +91,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     deploy:
@@ -86,6 +106,11 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   qdrant:
     deploy:
@@ -96,3 +121,29 @@ services:
         reservations:
           memory: 512M
           cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# AWS-specific volume configurations
+volumes:
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/imp_mail/redis_data
+  qdrant_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/imp_mail/qdrant_data
+  classifier_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/imp_mail/classifier_logs
