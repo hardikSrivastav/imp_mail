@@ -1,8 +1,6 @@
 # AWS-optimized Docker Compose configuration
 # Use this for AWS deployments with: docker-compose -f docker-compose.prod.yml -f docker-compose.aws.yml up
 
-version: '3.8'
-
 services:
   app:
     build:
