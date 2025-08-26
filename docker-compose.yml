@@ -21,6 +21,7 @@ services:
     depends_on:
       - redis
       - qdrant
+      - postgres
     networks:
       - email-filter-network
     command: npm run dev  # Use development command instead of production start
@@ -33,6 +34,20 @@ services:
       - redis_data:/data
     networks:
       - email-filter-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=email_filter
+      - POSTGRES_USER=emailuser
+      - POSTGRES_PASSWORD=emailpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - email-filter-network
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -125,6 +140,7 @@ services:
 volumes:
   redis_data:
   qdrant_data:
+  postgres_data:
   classifier_logs:
 
 networks:

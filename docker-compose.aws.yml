@@ -110,6 +110,21 @@ services:
         max-size: "5m"
         max-file: "2"
 
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   qdrant:
     deploy:
       resources:
@@ -139,6 +154,12 @@ volumes:
       type: none
       o: bind
       device: /opt/imp_mail/qdrant_data
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/imp_mail/postgres_data
   classifier_logs:
     driver: local
     driver_opts:
