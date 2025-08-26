@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Copy requirements first for better caching
-COPY requirements_minimal.txt requirements.txt ./
+COPY requirements_minimal.txt ./
 
 # Install Python dependencies with optimizations (including dev dependencies)
 RUN pip install --no-cache-dir --timeout 600 --retries 3 \
@@ -68,7 +68,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Copy requirements first for better caching
-COPY requirements_minimal.txt requirements.txt ./
+COPY requirements_minimal.txt ./
 
 # Install Python dependencies with optimizations
 RUN pip install --no-cache-dir --timeout 600 --retries 3 \

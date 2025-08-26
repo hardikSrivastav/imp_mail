@@ -7,9 +7,8 @@ export COMPOSE_DOCKER_CLI_BUILD=1
 echo "🚀 Starting optimized production build..."
 
 # Build with progress output and better error handling
-docker-compose -f docker-compose.prod.yml build \
+BUILDKIT_PROGRESS=plain docker-compose -f docker-compose.prod.yml build \
     --parallel \
-    --progress=plain \
     --no-cache \
     email-classifier incremental-classifier
 
