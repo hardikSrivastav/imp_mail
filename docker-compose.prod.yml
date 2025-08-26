@@ -48,6 +48,8 @@ services:
     build:
       context: ./imp_mail2
       target: production
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     ports:
       - "8000:8000"
     environment:
@@ -76,6 +78,8 @@ services:
     build:
       context: ./imp_mail2
       target: production
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     environment:
       - VECTOR_STORE_TYPE=qdrant
       - QDRANT_HOST=qdrant

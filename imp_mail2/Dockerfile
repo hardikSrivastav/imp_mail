@@ -1,6 +1,12 @@
 # Development stage
 FROM python:3.11-slim AS development
 
+# Set environment variables for Python
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 # Set working directory
 WORKDIR /app
 
@@ -9,13 +15,18 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY requirements_minimal.txt requirements.txt ./
 
-# Install Python dependencies with timeout and retry logic (including dev dependencies)
-RUN pip install --no-cache-dir --timeout 300 --retries 5 -r requirements.txt
+# Install Python dependencies with optimizations (including dev dependencies)
+RUN pip install --no-cache-dir --timeout 600 --retries 3 \
+    --index-url https://pypi.org/simple/ \
+    --trusted-host pypi.org \
+    -r requirements_minimal.txt
 
 # Create directories for data persistence
 RUN mkdir -p /app/data /app/models /app/logs /app/shared_data
@@ -38,6 +49,12 @@ CMD ["uvicorn", "email_classifier_service:app", "--host", "0.0.0.0", "--port", "
 # Production stage
 FROM python:3.11-slim AS production
 
+# Set environment variables for Python
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 # Set working directory
 WORKDIR /app
 
@@ -46,13 +63,18 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY requirements_minimal.txt requirements.txt ./
 
-# Install Python dependencies with timeout and retry logic
-RUN pip install --no-cache-dir --timeout 300 --retries 5 -r requirements.txt
+# Install Python dependencies with optimizations
+RUN pip install --no-cache-dir --timeout 600 --retries 3 \
+    --index-url https://pypi.org/simple/ \
+    --trusted-host pypi.org \
+    -r requirements_minimal.txt
 
 # Copy application code
 COPY *.py .
