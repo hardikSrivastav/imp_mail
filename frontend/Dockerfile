@@ -62,10 +62,15 @@ COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile --prod
 
+# Copy public directory from source first (before switching users)
+COPY public ./public
+
 # Copy built application from builder stage
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
+
+# Change ownership of all copied files to nextjs user
+RUN chown -R nextjs:nodejs /app
 
 # Switch to non-root user
 USER nextjs
