@@ -24,7 +24,20 @@ export async function getDatabase(): Promise<Database> {
     return db;
   }
 
+  // Use PostgreSQL in production if DATABASE_URL is set, otherwise SQLite
+  if (process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    console.log('🚀 Production mode detected - please use PostgreSQL setup');
+    throw new Error('Production mode requires PostgreSQL. Please set up PostgreSQL migration.');
+  }
+
   const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'emails.db');
+  
+  // Ensure directory exists
+  const fs = require('fs');
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   
   db = await open({
     filename: dbPath,

@@ -4,7 +4,7 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++ sqlite-dev
+RUN apk add --no-cache python3 make g++ postgresql-dev sqlite-dev
 
 # Copy package files
 COPY package*.json ./
