@@ -11,6 +11,7 @@ services:
       - PROTOTYPE_HIGH_THRESHOLD=0.6
       - PROTOTYPE_LOW_THRESHOLD=0.5
       - DATABASE_PATH=/tmp/emails.db
+      - QDRANT_URL=http://qdrant:6333
     env_file:
       - .env
     volumes:
@@ -126,7 +127,7 @@ services:
       - "3005:3005"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://app:3000
+      - NEXT_PUBLIC_API_URL=http://15.206.169.99:3000
     depends_on:
       - app
       - email-classifier
