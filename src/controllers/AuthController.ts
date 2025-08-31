@@ -169,7 +169,7 @@ export class AuthController {
             }
 
             // Redirect to frontend with token
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3005';
+            const frontendUrl = process.env.FRONTEND_URL || 'http://15.206.169.99:3005';
             res.redirect(`${frontendUrl}/auth/callback?token=${encodeURIComponent(jwtToken)}&user=${encodeURIComponent(JSON.stringify(user))}`);
         } catch (error) {
             console.error('Callback GET error:', error);
