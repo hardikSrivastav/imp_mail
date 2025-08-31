@@ -10,11 +10,12 @@ services:
       - OPENAI_MODEL=gpt-4o-mini
       - PROTOTYPE_HIGH_THRESHOLD=0.6
       - PROTOTYPE_LOW_THRESHOLD=0.5
+      - DATABASE_PATH=/tmp/emails.db
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
     depends_on:
       - redis
       - qdrant
