@@ -70,8 +70,8 @@ COPY --from=builder /app/dist ./dist
 # Copy environment file
 COPY .env ./
 
-# Create data and logs directories
-RUN mkdir -p data logs
+# Create data and logs directories with proper permissions
+RUN mkdir -p data logs && chmod 777 data logs
 
 # Expose port
 EXPOSE 3000

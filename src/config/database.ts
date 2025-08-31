@@ -31,8 +31,15 @@ export async function getDatabase(): Promise<Database> {
   // Ensure directory exists
   const fs = require('fs');
   const dir = path.dirname(dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+      console.log(`✅ Created database directory: ${dir}`);
+    }
+    console.log(`📂 Using database path: ${dbPath}`);
+  } catch (error) {
+    console.error('❌ Failed to create database directory:', error);
+    throw error;
   }
   
   db = await open({
