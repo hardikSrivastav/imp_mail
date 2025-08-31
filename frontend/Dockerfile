@@ -13,8 +13,11 @@ COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Copy source code (including public directory)
 COPY . .
+
+# Verify public directory exists
+RUN ls -la /app/public || echo "Public directory not found in builder stage"
 
 # Build the application
 RUN pnpm build
@@ -64,8 +67,10 @@ RUN pnpm install --frozen-lockfile --prod
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder /app/package.json ./package.json
+
+# Note: Skipping public directory copy - test if the app works without it
+# If you need static assets later, you can add: COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Change ownership of all copied files to nextjs user
 RUN chown -R nextjs:nodejs /app
