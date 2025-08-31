@@ -16,6 +16,12 @@ RUN pnpm install --frozen-lockfile
 # Copy source code (including public directory)
 COPY . .
 
+# Set build-time environment variables
+ARG NEXT_PUBLIC_API_BASE_URL=http://15.206.169.99:3000
+ARG NEXT_PUBLIC_FASTAPI_URL=http://15.206.169.99:8000
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_FASTAPI_URL=$NEXT_PUBLIC_FASTAPI_URL
+
 # Verify public directory exists
 RUN ls -la /app/public || echo "Public directory not found in builder stage"
 

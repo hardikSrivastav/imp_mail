@@ -128,6 +128,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_BASE_URL=http://15.206.169.99:3000
+      - NEXT_PUBLIC_FASTAPI_URL=http://15.206.169.99:8000
     depends_on:
       - app
       - email-classifier
