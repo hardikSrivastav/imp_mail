@@ -10,7 +10,6 @@ services:
       - OPENAI_MODEL=gpt-4o-mini
       - PROTOTYPE_HIGH_THRESHOLD=0.6
       - PROTOTYPE_LOW_THRESHOLD=0.5
-      - DATABASE_URL=postgresql://emailuser:emailpass@postgres:5432/email_filter
     env_file:
       - .env
     volumes:
