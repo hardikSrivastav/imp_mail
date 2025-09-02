@@ -77,7 +77,28 @@ export function Navigation() {
         })}
       </nav>
 
-      <div className="p-4">
+      <div className="p-4 space-y-2">
+        {/* Legal links */}
+        <div className="space-y-1">
+          <Link href="/terms" onClick={closeMobileMenu}>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8"
+            >
+              Terms of Service
+            </Button>
+          </Link>
+          <Link href="/privacy" onClick={closeMobileMenu}>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8"
+            >
+              Privacy Policy
+            </Button>
+          </Link>
+        </div>
+        
+        {/* Sign out button */}
         <Button
           onClick={() => {
             logout()
