@@ -17,8 +17,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Set build-time environment variables
-ARG NEXT_PUBLIC_API_BASE_URL=http://15.206.169.99:3000
-ARG NEXT_PUBLIC_FASTAPI_URL=http://15.206.169.99:8000
+ARG NEXT_PUBLIC_API_BASE_URL=https://api.amail.hardiksrivastava.com
+ARG NEXT_PUBLIC_FASTAPI_URL=https://api.amail.hardiksrivastava.com:8000
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_FASTAPI_URL=$NEXT_PUBLIC_FASTAPI_URL
 
