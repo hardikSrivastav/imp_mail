@@ -13,7 +13,7 @@ services:
       - DATABASE_PATH=/tmp/emails.db
       - QDRANT_URL=http://qdrant:6333
       - FRONTEND_URL=https://amail.hardiksrivastava.com
-      - GOOGLE_REDIRECT_URI=https://api.amail.hardiksrivastava.com/api/auth/callback
+      - GOOGLE_REDIRECT_URI=https://amail.hardiksrivastava.com/api/auth/callback
     env_file:
       - .env
     volumes:
@@ -129,8 +129,8 @@ services:
       - "3005:3005"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_BASE_URL=https://api.amail.hardiksrivastava.com
-      - NEXT_PUBLIC_FASTAPI_URL=https://api.amail.hardiksrivastava.com:8000
+      - NEXT_PUBLIC_API_BASE_URL=https://amail.hardiksrivastava.com
+      - NEXT_PUBLIC_FASTAPI_URL=https://amail.hardiksrivastava.com/ml
     depends_on:
       - app
       - email-classifier
