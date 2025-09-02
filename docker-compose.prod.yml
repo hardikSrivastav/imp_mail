@@ -12,6 +12,7 @@ services:
       - PROTOTYPE_LOW_THRESHOLD=0.5
       - DATABASE_PATH=/tmp/emails.db
       - QDRANT_URL=http://qdrant:6333
+      - FRONTEND_URL=http://15.206.169.99:3005
     env_file:
       - .env
     volumes:
