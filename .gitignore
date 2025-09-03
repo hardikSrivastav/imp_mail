@@ -92,6 +92,8 @@ temp/
 *.swo
 *~
 
+imp_mail_vid_for_google.mp4
+
 # OS generated files
 .DS_Store
 .DS_Store?
