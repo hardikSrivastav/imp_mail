@@ -1,0 +1,19 @@
+[Unit]
+Description=Imp Mail Application
+Requires=docker.service
+After=docker.service
+StartLimitInterval=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/imp_mail
+ExecStart=/usr/local/bin/docker-compose -f docker-compose.prod.yml -f docker-compose.aws.yml up -d
+ExecStop=/usr/local/bin/docker-compose -f docker-compose.prod.yml -f docker-compose.aws.yml down
+ExecReload=/usr/local/bin/docker-compose -f docker-compose.prod.yml -f docker-compose.aws.yml restart
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
