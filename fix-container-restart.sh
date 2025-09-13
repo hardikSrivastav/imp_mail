@@ -34,19 +34,24 @@ print_error() {
 # Function to check if running as root
 check_root() {
     if [[ $EUID -eq 0 ]]; then
-        print_error "This script should not be run as root"
-        exit 1
+        print_warning "Running as root - this is OK for system configuration"
+    else
+        print_status "Running as regular user - will use sudo for system operations"
     fi
 }
 
-# Function to configure Docker daemon for stability
-configure_docker_daemon() {
-    print_status "Configuring Docker daemon for production stability..."
+# Function to detect and configure container runtime
+configure_container_runtime() {
+    print_status "Detecting and configuring container runtime..."
     
-    sudo mkdir -p /etc/docker
-    
-    # Create or update Docker daemon configuration
-    sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+    # Check if we're using Docker or Podman
+    if docker info >/dev/null 2>&1 && ! docker info 2>&1 | grep -q "Emulate Docker CLI using podman"; then
+        print_status "Using Docker - configuring Docker daemon..."
+        
+        sudo mkdir -p /etc/docker
+        
+        # Create or update Docker daemon configuration
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
     "log-driver": "json-file",
     "log-opts": {
@@ -69,9 +74,36 @@ configure_docker_daemon() {
 }
 EOF
 
-    # Restart Docker daemon
-    sudo systemctl restart docker
-    print_success "Docker daemon configured and restarted"
+        # Restart Docker daemon
+        sudo systemctl restart docker
+        print_success "Docker daemon configured and restarted"
+        
+    else
+        print_status "Using Podman - configuring Podman..."
+        
+        # Create podman configuration directory
+        mkdir -p ~/.config/containers
+        
+        # Configure podman for better stability
+        tee ~/.config/containers/containers.conf > /dev/null <<EOF
+[containers]
+default_ulimits = [
+    "nofile=64000:64000"
+]
+
+[engine]
+events_logger = "file"
+log_driver = "k8s-file"
+EOF
+
+        # Enable podman socket if available
+        if systemctl list-unit-files | grep -q "podman.socket"; then
+            sudo systemctl enable --now podman.socket
+            print_success "Podman socket enabled"
+        fi
+        
+        print_success "Podman configured for stability"
+    fi
 }
 
 # Function to install systemd service
@@ -98,7 +130,8 @@ create_compose_wrapper() {
 
 # Docker Compose wrapper with enhanced restart logic
 COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.aws.yml"
-LOG_FILE="/opt/imp_mail/restart.log"
+LOG_FILE="/home/ec2-user/imp_mail/restart.log"
+WORK_DIR="/home/ec2-user/imp_mail"
 
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -107,6 +140,9 @@ log_message() {
 # Function to check if services are healthy
 check_services_health() {
     log_message "Checking services health..."
+    
+    # Change to working directory
+    cd "$WORK_DIR" || { log_message "Failed to change to working directory: $WORK_DIR"; return 1; }
     
     # Check if all services are running
     if ! docker-compose $COMPOSE_FILES ps | grep -q "Up"; then
@@ -171,12 +207,14 @@ restart_services() {
 case "${1:-start}" in
     start)
         log_message "Starting imp_mail services..."
+        cd "$WORK_DIR" || { log_message "Failed to change to working directory: $WORK_DIR"; exit 1; }
         docker-compose $COMPOSE_FILES up -d
         sleep 30
         check_services_health || restart_services
         ;;
     stop)
         log_message "Stopping imp_mail services..."
+        cd "$WORK_DIR" || { log_message "Failed to change to working directory: $WORK_DIR"; exit 1; }
         docker-compose $COMPOSE_FILES down
         ;;
     restart)
@@ -205,7 +243,7 @@ setup_log_rotation() {
     print_status "Setting up log rotation for restart logs..."
     
     sudo tee /etc/logrotate.d/imp-mail-restart > /dev/null <<EOF
-/opt/imp_mail/restart.log {
+/home/ec2-user/imp_mail/restart.log {
     daily
     rotate 7
     compress
@@ -228,7 +266,7 @@ setup_health_monitoring() {
 #!/bin/bash
 
 # Health monitoring script for imp_mail
-LOG_FILE="/opt/imp_mail/health-check.log"
+LOG_FILE="/home/ec2-user/imp_mail/health-check.log"
 
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -281,8 +319,8 @@ main() {
     
     check_root
     
-    # Configure Docker for stability
-    configure_docker_daemon
+    # Configure container runtime for stability
+    configure_container_runtime
     
     # Install systemd service
     install_systemd_service
