@@ -1,3 +1,4 @@
+echo "🔧 Fixing Docker container restart issues..."
 [Unit]
 Description=Imp Mail Application
 After=network.target
